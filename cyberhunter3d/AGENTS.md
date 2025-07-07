@@ -22,7 +22,10 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
 -   `scripts/`: Helper scripts (e.g., for installation, setup).
 
 ## Specific Instructions
--   **Subdomain Enumeration Output:** Ensure the subdomain enumeration module produces output files as specified: `Subdomain.txt`, `subdomains_alive.txt`, etc. (Refer to section 5.1 of the main project brief).
+-   **Subdomain Enumeration Output:** Ensure the subdomain enumeration module produces output files as specified: `Subdomain.txt`, `subdomains_alive.txt`, `subdomains_dead.txt`, etc. (Refer to section 5.1 of the main project brief). The module currently implements these three and creates placeholders for others.
+-   **Subdomain Enumeration Dependencies:** The functional subdomain enumeration module (`ch_modules/subdomain_enumeration/main.py`) currently relies on:
+    -   `subfinder`: Must be installed and available in the system's PATH. (Installation: `go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest`)
+    -   `httpx`: Python library, included in `requirements.txt`.
 -   **API Design:** When designing APIs, aim for RESTful principles. Clearly define request and response payloads.
 
 ## Future Vision (3D Interface & AI)
