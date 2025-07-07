@@ -1,0 +1,7 @@
+# Project Dependencies will be listed here
+# Example:
+# flask
+# requests
+# sublist3r
+# amass
+# subfinder

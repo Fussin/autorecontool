@@ -1,0 +1,6 @@
+# This directory is intended for helper scripts.
+# Examples:
+# - Installation scripts for dependencies or tools
+# - Setup scripts for development environments
+# - Scripts for running specific tasks (e.g., linting, testing batches)
+# - Deployment scripts
