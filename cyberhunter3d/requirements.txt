@@ -2,8 +2,9 @@
 # Example:
 # flask
 # requests
-# sublist3r
 # amass
 # subfinder
 
 httpx
+sublist3r # For subdomain enumeration
+# other potential python tools for URL processing if needed later

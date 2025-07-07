@@ -22,10 +22,24 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
 -   `scripts/`: Helper scripts (e.g., for installation, setup).
 
 ## Specific Instructions
--   **Subdomain Enumeration Output:** Ensure the subdomain enumeration module produces output files as specified: `Subdomain.txt`, `subdomains_alive.txt`, `subdomains_dead.txt`, etc. (Refer to section 5.1 of the main project brief). The module currently implements these three and creates placeholders for others.
--   **Subdomain Enumeration Dependencies:** The functional subdomain enumeration module (`ch_modules/subdomain_enumeration/main.py`) currently relies on:
-    -   `subfinder`: Must be installed and available in the system's PATH. (Installation: `go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest`)
-    -   `httpx`: Python library, included in `requirements.txt`.
+-   **Reconnaissance Workflow Output Files (`ch_modules/subdomain_enumeration/main.py`):**
+    -   `Subdomain.txt`: Consolidated unique subdomains from Subfinder, Sublist3r, Amass, Assetfinder.
+    -   `subdomains_alive.txt`: Subdomains from `Subdomain.txt` that responded to HTTP/HTTPS checks (via httpx).
+    -   `subdomains_dead.txt`: Subdomains from `Subdomain.txt` that did not respond.
+    -   `Way_kat.txt`: Consolidated unique URLs discovered by Waybackurls and Katana run against live subdomains.
+    -   `alive_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 200-399 status codes.
+    -   `dead_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 400-599 status codes or failed requests (includes status code in output).
+    -   Placeholders: `subdomain_takeover.txt`, `wildcard_domains.txt`, `subdomain_technologies.json` are also created.
+-   **Tool Dependencies for Reconnaissance Workflow:**
+    -   **Python Libraries (in `requirements.txt`):**
+        -   `httpx`: For HTTP/S liveness checks.
+        -   `sublist3r`: For subdomain enumeration.
+    -   **Go-based Tools (Manual Install - Must be in PATH):**
+        -   `subfinder`: `go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest`
+        -   `amass`: `go install -v github.com/owasp-amass/amass/v4/cmd/amass@master` (script uses `amass intel -d <domain> -whois -ip`)
+        -   `assetfinder`: `go install -v github.com/tomnomnom/assetfinder@latest`
+        -   `waybackurls`: `go install -v github.com/tomnomnom/waybackurls@latest`
+        -   `katana`: `go install -v github.com/projectdiscovery/katana/cmd/katana@latest` (script uses `katana -u <target> -silent -jc -nc -aff -kf all`)
 -   **API Design:** When designing APIs, aim for RESTful principles. Clearly define request and response payloads.
 
 ## Future Vision (3D Interface & AI)
