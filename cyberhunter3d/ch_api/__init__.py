@@ -1,8 +1,13 @@
 # CyberHunter 3D - API Package
-# This package will contain all API related code,
-# including endpoint definitions, request/response models,
-# and API specific logic.
 
-# It might use a framework like Flask or FastAPI.
+# This __init__.py makes 'ch_api' a package.
+# It can also be used for centralizing Blueprint registrations or app factory pattern.
 
-__version__ = "0.0.1"
+# from .main_api import create_app # If you want to expose create_app directly
+
+__version__ = "0.0.2" # Version bump for API addition
+__all__ = [] # Define what 'from ch_api import *' imports, if anything
+
+# If using Blueprints and want to collect them here:
+# from .routes.scan_routes import scan_bp
+# all_blueprints = [scan_bp]

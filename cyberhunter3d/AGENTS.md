@@ -34,13 +34,28 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   **Python Libraries (in `requirements.txt`):**
         -   `httpx`: For HTTP/S liveness checks.
         -   `sublist3r`: For subdomain enumeration.
+        -   `Flask`: Python library for the API server. Included in `requirements.txt`.
     -   **Go-based Tools (Manual Install - Must be in PATH):**
         -   `subfinder`: `go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest`
         -   `amass`: `go install -v github.com/owasp-amass/amass/v4/cmd/amass@master` (script uses `amass intel -d <domain> -whois -ip`)
         -   `assetfinder`: `go install -v github.com/tomnomnom/assetfinder@latest`
         -   `waybackurls`: `go install -v github.com/tomnomnom/waybackurls@latest`
         -   `katana`: `go install -v github.com/projectdiscovery/katana/cmd/katana@latest` (script uses `katana -u <target> -silent -jc -nc -aff -kf all`)
--   **API Design:** When designing APIs, aim for RESTful principles. Clearly define request and response payloads.
+-   **API Design & Endpoints:**
+    -   The API is built using Flask.
+    -   Asynchronous tasks (like running the recon workflow) are currently handled using `concurrent.futures.ThreadPoolExecutor`. For production, consider migrating to a more robust task queue like Celery with Redis/RabbitMQ.
+    -   Scan job statuses and result paths are stored in-memory. This will need to be replaced by a persistent store (e.g., database) for a production system.
+    -   The main API application is in `ch_api/main_api.py` and routes are in `ch_api/routes/scan_routes.py`.
+    -   **Endpoints (base: `/api/v1/scan` - prefix applied in `main_api.py` where `scan_bp` is registered):**
+        -   `POST /recon`: Initiates a new reconnaissance scan.
+            -   Request Body: `{"target": "example.com"}`
+            -   Response (202): `{"message": "...", "scan_id": "...", "status_endpoint": "...", "results_endpoint": "..."}`
+        -   `GET /recon/status/<scan_id>`: Retrieves the status of a scan.
+            -   Response (200): `{"scan_id": "...", "target": "...", "status": "queued|running|completed|failed", "error": "..."}`
+        -   `GET /recon/results/<scan_id>`: Retrieves the results of a completed scan (paths to files).
+            -   Response (200 if completed): Dictionary of result file paths.
+            -   Response (202 if in progress, 404 if not found, 500 if failed).
+    -   A basic `/health` endpoint is available at the root of the API server (`ch_api/main_api.py`).
 
 ## Future Vision (3D Interface & AI)
 While the initial focus might be on backend logic and tool integration, keep the ultimate vision of a 3D holographic interface and AI-driven analysis in mind. Design components in a way that they can eventually feed data into such a system. For instance, ensure structured data output that can be easily parsed and visualized.

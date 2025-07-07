@@ -1,10 +1,10 @@
 # Project Dependencies will be listed here
 # Example:
-# flask
 # requests
 # amass
 # subfinder
 
 httpx
 sublist3r # For subdomain enumeration
+Flask # For the API
 # other potential python tools for URL processing if needed later
