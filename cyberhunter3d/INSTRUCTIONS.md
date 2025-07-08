@@ -68,8 +68,12 @@ Several external Go-based tools are used by the reconnaissance script. You need 
     ```bash
     go install -v github.com/projectdiscovery/katana/cmd/katana@latest
     ```
+*   **Subzy:** (For subdomain takeover checks)
+    ```bash
+    go install -v github.com/LukaSikic/subzy@latest
+    ```
 
-**Verification:** After installation, ensure each tool is accessible by typing its name in the terminal (e.g., `subfinder -h`). If you get a "command not found" error, ensure your Go binary path (usually `$HOME/go/bin` or `$GOPATH/bin`) is added to your system's `PATH` environment variable.
+**Verification:** After installation, ensure each tool is accessible by typing its name in the terminal (e.g., `subfinder -h`, `subzy -h`). If you get a "command not found" error, ensure your Go binary path (usually `$HOME/go/bin` or `$GOPATH/bin`) is added to your system's `PATH` environment variable.
 
 ## 2. Running the Reconnaissance Script Directly
 
@@ -92,6 +96,7 @@ The script will:
     *   `subdomain_dns_resolutions.json`: JSON mapping subdomains to their resolved IP addresses.
     *   `subdomains_alive.txt`: Live subdomains (checked on ports 80, 443, 8000, 8080).
     *   `subdomains_dead.txt`: Subdomains that did not respond on the probed ports.
+    *   `subdomain_takeover_vulnerable.txt`: Potential subdomain takeovers found by Subzy.
     *   `Way_kat.txt`: All URLs found from waybackurls/katana.
     *   `alive_domain.txt`: Live URLs (200s/30xs).
     *   `dead_domain.txt`: Dead/Error URLs (40xs/50xs).

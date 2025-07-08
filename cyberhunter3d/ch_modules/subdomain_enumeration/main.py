@@ -97,6 +97,76 @@ def run_katana(target: str) -> set[str]: # Target can be a domain or subdomain
     # -silent -jc for JS parsing, -nc for no colors
     return _run_tool(["katana", "-u", target, "-silent", "-jc", "-nc", "-aff", "-kf", "all"], "Katana", target)
 
+# --- Subdomain Takeover Check ---
+def run_subzy_takeover_check(live_subdomains_file: str, output_file_subzy: str, target_domain_for_log: str) -> bool:
+    """
+    Runs Subzy to check for subdomain takeover vulnerabilities.
+    Args:
+        live_subdomains_file (str): Path to the file containing live subdomains (one per line).
+        output_file_subzy (str): Path where Subzy's output (potential takeovers) will be saved.
+        target_domain_for_log (str): The main target domain, for logging purposes.
+    Returns:
+        bool: True if Subzy ran successfully (even if no vulns found), False on error.
+    """
+    print(f"[INFO] Running Subzy for subdomain takeover check on file: {live_subdomains_file}")
+    if not os.path.exists(live_subdomains_file) or os.path.getsize(live_subdomains_file) == 0:
+        print(f"[INFO] Subzy: Live subdomains file '{live_subdomains_file}' is empty or not found. Skipping takeover check.")
+        with open(output_file_subzy, "w") as f: # Create empty placeholder
+            f.write("# No live subdomains to check for takeover.\n")
+        return True # Considered successful as there's nothing to scan
+
+    # Command: subzy run --targets <file> --output <output_file> --hide_fails
+    # --verify_ssl can sometimes cause issues with misconfigured SSL, remove if problematic.
+    # Subzy writes vulnerabilities directly to its output. We'll let it manage the file.
+    command = ["subzy", "run", "--targets", live_subdomains_file, "--output", output_file_subzy, "--hide_fails"]
+
+    try:
+        # Use a generic _run_tool like approach, but Subzy manages its own output file.
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE, # Capture stdout for logging/debugging if needed
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        stdout, stderr = process.communicate(timeout=600)  # 10-minute timeout for Subzy
+
+        if process.returncode == 0:
+            print(f"[INFO] Subzy completed successfully for {target_domain_for_log}.")
+            # Check if output file was created and has content (Subzy creates it even if empty)
+            if os.path.exists(output_file_subzy) and os.path.getsize(output_file_subzy) > 0:
+                 print(f"[VULN_POTENTIAL] Subzy found potential takeovers for {target_domain_for_log}. Results in: {output_file_subzy}")
+            else:
+                 print(f"[INFO] Subzy found no potential takeovers for {target_domain_for_log}.")
+                 # Ensure the file exists even if Subzy didn't find anything / create it.
+                 if not os.path.exists(output_file_subzy):
+                     with open(output_file_subzy, "w") as f: f.write("# No takeover vulnerabilities found by Subzy.\n")
+
+            return True
+        else:
+            print(f"[ERROR] Subzy failed for {target_domain_for_log}. RC: {process.returncode}")
+            print(f"[ERROR] Subzy stdout: {stdout[:500]}")
+            print(f"[ERROR] Subzy stderr: {stderr[:500]}")
+            if "command not found" in stderr.lower() or "no such file or directory" in stderr.lower():
+                print(f"[ERROR] Subzy command not found. Ensure it's installed and in PATH.")
+            with open(output_file_subzy, "w") as f: # Create placeholder with error
+                f.write(f"# Subzy execution failed. Stderr: {stderr[:200]}\n")
+            return False
+    except FileNotFoundError:
+        print(f"[ERROR] Subzy command not found. Ensure it's installed and in PATH.")
+        with open(output_file_subzy, "w") as f: f.write("# Subzy command not found.\n")
+        return False
+    except subprocess.TimeoutExpired:
+        print(f"[ERROR] Subzy timed out for {target_domain_for_log}.")
+        if process and process.poll() is None:
+            process.kill()
+            process.communicate()
+        with open(output_file_subzy, "w") as f: f.write("# Subzy timed out.\n")
+        return False
+    except Exception as e:
+        print(f"[ERROR] An exception occurred while running Subzy for {target_domain_for_log}: {e}")
+        with open(output_file_subzy, "w") as f: f.write(f"# Exception during Subzy run: {e}\n")
+        return False
+
 
 # --- Liveness Checking (for subdomains and URLs) ---
 
@@ -199,23 +269,32 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
     sensitive_exposure_file = os.path.join(domain_output_path, "sensitive_exposure.txt")
     # Initialize dns_resolutions_file path early as well
     dns_resolutions_file = os.path.join(domain_output_path, "subdomain_dns_resolutions.json")
+    # Initialize subdomain_takeover_file path early
+    subdomain_takeover_file = os.path.join(domain_output_path, "subdomain_takeover_vulnerable.txt")
 
 
     if not all_discovered_subdomains:
         print(f"[WARNING] No subdomains found by any tool for {target_domain}.")
         # Create all expected files as empty
-        for f_path in [all_subdomains_file, dns_resolutions_file, subdomains_alive_file, subdomains_dead_file, way_kat_file, urls_alive_file, urls_dead_file, takeover_file, wildcard_file, sensitive_exposure_file]:
-            open(f_path, 'w').close()
+        for f_path in [all_subdomains_file, dns_resolutions_file, subdomains_alive_file,
+                       subdomains_dead_file, way_kat_file, urls_alive_file, urls_dead_file,
+                       takeover_file, wildcard_file, sensitive_exposure_file, subdomain_takeover_file]:
+            # Ensure all files, including subdomain_takeover_file, are created if exiting early
+            if not os.path.exists(f_path): open(f_path, 'w').close()
+            if f_path == subdomain_takeover_file: # Specific message for takeover if skipped
+                 with open(f_path, 'w') as fto: fto.write("# Subdomain takeover check skipped: No subdomains found.\n")
+
         with open(metadata_file, "w") as f: f.write("{}") # metadata also empty
         return {
             "target_domain": target_domain, "status": "completed_no_subdomains_found_by_any_tool",
             "all_subdomains_file": all_subdomains_file,
-            "dns_resolutions_file": dns_resolutions_file, # Ensure it's in all return paths
+            "dns_resolutions_file": dns_resolutions_file,
             "subdomains_alive_file": subdomains_alive_file,
             "subdomains_dead_file": subdomains_dead_file, "way_kat_file": way_kat_file,
             "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
             "sensitive_exposure_file": sensitive_exposure_file,
-            "takeover_vulnerable_file": takeover_file, "wildcard_domains_file": wildcard_file,
+            "takeover_vulnerable_file": subdomain_takeover_file, # ensure key is present
+            "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
 
@@ -273,22 +352,34 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         for sub in sorted(dead_subs_list): f.write(sub + "\n")
     print(f"[INFO] Found {len(dead_subs_list)} dead subdomains. Saved to {subdomains_dead_file}")
 
+    # --- Subdomain Takeover Check (after identifying live subdomains) ---
+    print("\n--- Running Subdomain Takeover Check (Subzy) ---")
+    # subdomain_takeover_file was initialized at the start of the function
+    run_subzy_takeover_check(subdomains_alive_file, subdomain_takeover_file, target_domain)
+    # The run_subzy_takeover_check function handles creating the file even if subzy fails or finds nothing.
+
     if not live_subs_list:
-        print("[WARNING] No live subdomains found. URL discovery and filtering will be skipped.")
-        # Create empty files for URL stages
-        for f_path in [way_kat_file, urls_alive_file, urls_dead_file, sensitive_exposure_file]: open(f_path, 'w').close()
-        with open(takeover_file, "w") as f: pass
-        with open(wildcard_file, "w") as f: pass
-        with open(metadata_file, "w") as f: f.write("{}")
+        print("[WARNING] No live subdomains found. URL discovery and sensitive data discovery will be skipped.")
+        # Create empty files for these subsequent stages
+        for f_path in [way_kat_file, urls_alive_file, urls_dead_file, sensitive_exposure_file]:
+            if not os.path.exists(f_path): open(f_path, 'w').close()
+        # Ensure other placeholder files also exist if not created by earlier logic
+        if not os.path.exists(takeover_file): open(takeover_file, 'w').close() # Generic takeover placeholder
+        if not os.path.exists(wildcard_file): open(wildcard_file, 'w').close()
+        if not os.path.exists(metadata_file):
+            with open(metadata_file, "w") as f: f.write("{}")
+
         return {
             "target_domain": target_domain, "status": "completed_no_live_subdomains",
             "all_subdomains_file": all_subdomains_file,
-            "dns_resolutions_file": dns_resolutions_file, # Ensure it's in all return paths
+            "dns_resolutions_file": dns_resolutions_file,
             "subdomains_alive_file": subdomains_alive_file,
-            "subdomains_dead_file": subdomains_dead_file, "way_kat_file": way_kat_file,
+            "subdomains_dead_file": subdomains_dead_file,
+            "takeover_vulnerable_file": subdomain_takeover_file, # Actual Subzy output file
+            "way_kat_file": way_kat_file,
             "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
             "sensitive_exposure_file": sensitive_exposure_file,
-            "takeover_vulnerable_file": takeover_file, "wildcard_domains_file": wildcard_file,
+            "wildcard_domains_file": wildcard_file, # Placeholder for general wildcard info
             "metadata_file": metadata_file
         }
 
@@ -319,12 +410,14 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         return {
             "target_domain": target_domain, "status": "completed_no_urls_discovered",
             "all_subdomains_file": all_subdomains_file,
-            "dns_resolutions_file": dns_resolutions_file, # Ensure it's in all return paths
+            "dns_resolutions_file": dns_resolutions_file,
             "subdomains_alive_file": subdomains_alive_file,
-            "subdomains_dead_file": subdomains_dead_file, "way_kat_file": way_kat_file,
+            "subdomains_dead_file": subdomains_dead_file,
+            "takeover_vulnerable_file": subdomain_takeover_file, # Actual Subzy output file
+            "way_kat_file": way_kat_file,
             "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
             "sensitive_exposure_file": sensitive_exposure_file,
-            "takeover_vulnerable_file": takeover_file, "wildcard_domains_file": wildcard_file,
+            "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
 
@@ -389,15 +482,15 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         "target_domain": target_domain,
         "status": "completed_full_recon_flow", # This status might need to be more dynamic based on stages completed
         "all_subdomains_file": all_subdomains_file,
-        "dns_resolutions_file": dns_resolutions_file, # Added DNS resolution file
+        "dns_resolutions_file": dns_resolutions_file,
         "subdomains_alive_file": subdomains_alive_file,
         "subdomains_dead_file": subdomains_dead_file,
+        "takeover_vulnerable_file": subdomain_takeover_file, # Actual Subzy output file
         "way_kat_file": way_kat_file,
         "urls_alive_file": urls_alive_file,
         "urls_dead_file": urls_dead_file,
         "sensitive_exposure_file": sensitive_exposure_file,
-        "takeover_vulnerable_file": takeover_file,
-        "wildcard_domains_file": wildcard_file,
+        "wildcard_domains_file": wildcard_file, # This is still a generic placeholder
         "metadata_file": metadata_file,
     }
     print(f"\n[SUCCESS] Comprehensive recon workflow completed for: {target_domain}")

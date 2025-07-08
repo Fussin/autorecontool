@@ -15,12 +15,13 @@ Initial project structure setup. The tool currently features a comprehensive rec
     - Subdomain Enumeration (Subfinder, Sublist3r, Amass, Assetfinder)
     - DNS Resolution for discovered subdomains.
     - Enhanced Subdomain Liveness Checks (httpx on ports 80, 443, 8000, 8080).
+    - Subdomain Takeover Checks (using Subzy).
     - URL Discovery (Waybackurls, Katana)
     - URL Filtering (httpx status codes)
     - Basic Sensitive Data Discovery (common files/paths like `.env`, `.git/config`, backups)
 - **API (`ch_api/`):**
     - Flask-based server.
-    - Endpoints to start reconnaissance scans (including sensitive data discovery), check status, and retrieve results.
+    - Endpoints to start reconnaissance scans (including subdomain takeover and sensitive data discovery), check status, and retrieve results.
     - Asynchronous scan execution using `ThreadPoolExecutor`.
     - Persistent storage of scan jobs and results metadata using SQLite (`instance/scan_jobs.db`).
 - **Web Interface (Placeholder):**
