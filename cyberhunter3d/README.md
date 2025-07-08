@@ -13,7 +13,8 @@ Initial project structure setup. The tool currently features a comprehensive rec
 ## Current Capabilities
 - **Reconnaissance Script (`ch_modules/subdomain_enumeration/main.py`):**
     - Subdomain Enumeration (Subfinder, Sublist3r, Amass, Assetfinder)
-    - Subdomain Liveness Checks (httpx)
+    - DNS Resolution for discovered subdomains.
+    - Enhanced Subdomain Liveness Checks (httpx on ports 80, 443, 8000, 8080).
     - URL Discovery (Waybackurls, Katana)
     - URL Filtering (httpx status codes)
     - Basic Sensitive Data Discovery (common files/paths like `.env`, `.git/config`, backups)

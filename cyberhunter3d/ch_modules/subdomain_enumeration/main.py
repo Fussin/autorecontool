@@ -6,6 +6,7 @@ import httpx
 import asyncio
 import tempfile
 import re
+import json # Added for DNS resolution output
 
 # --- Subdomain Enumeration Tool Wrappers ---
 
@@ -106,22 +107,44 @@ async def _check_item_liveness(item_to_check: str, client: httpx.AsyncClient, is
     """
     urls_to_probe = []
     if is_url:
-        urls_to_probe.append(item_to_check)
-    else: # it's a subdomain, probe http and https
-        urls_to_probe.extend([f"https://{item_to_check}", f"http://{item_to_check}"])
+        urls_to_probe.append(item_to_check) # If it's a full URL, check it as is
+    else: # it's a subdomain, construct URLs with different schemes and common ports
+        subdomain = item_to_check
+        ports_to_check = ["", ":8000", ":8080"] # Empty string for default ports (80, 443)
+        schemes = ["https", "http"]
+
+        for port_suffix in ports_to_check:
+            for scheme in schemes:
+                # Avoid adding :80 for http and :443 for https as httpx handles these defaults
+                if (scheme == "http" and port_suffix == "") or \
+                   (scheme == "https" and port_suffix == ""):
+                    urls_to_probe.append(f"{scheme}://{subdomain}")
+                elif port_suffix: # Only add port if it's specified (e.g., :8000, :8080)
+                     urls_to_probe.append(f"{scheme}://{subdomain}{port_suffix}")
+
+        # Ensure unique URLs if some combinations resolve to the same (e.g. http://domain:80)
+        # Though with current logic, it's mostly distinct.
+        # print(f"[DEBUG] Probing for {subdomain}: {urls_to_probe}")
+
 
     for url_probe in urls_to_probe:
         try:
-            response = await client.get(url_probe, timeout=10, follow_redirects=True)
-            # For subdomains: any 2xx, 3xx, 401, 403 is "alive"
-            # For URLs: we care about the specific status code for filtering
+            # print(f"[DEBUG] Checking liveness for: {url_probe}")
+            response = await client.get(url_probe, timeout=7, follow_redirects=True) # Reduced timeout for more probes
+
+            # For subdomains (is_url=False): any 2xx, 3xx, 401, 403 on any probed port is "alive"
             if not is_url and (200 <= response.status_code < 400 or response.status_code in [401, 403]):
-                return item_to_check, True, response.status_code
-            if is_url: # For URLs, always return status if request succeeds
-                return item_to_check, True, response.status_code # True here means request succeeded, not necessarily "good" status
+                # print(f"[DEBUG] {item_to_check} (as {url_probe}) is alive, status: {response.status_code}")
+                return item_to_check, True, response.status_code # Return with the first success
+
+            # For URLs (is_url=True): we care about the specific status code for filtering
+            if is_url:
+                return item_to_check, True, response.status_code # True means request succeeded
         except httpx.RequestError:
+            # print(f"[DEBUG] RequestError for {url_probe}")
             pass
-        except Exception:
+        except Exception as e:
+            # print(f"[DEBUG] Generic error for {url_probe}: {e}")
             pass # Catch any other unexpected errors
     return item_to_check, False, None
 
@@ -174,19 +197,24 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
 
     # Initialize sensitive_exposure_file path early for all return paths
     sensitive_exposure_file = os.path.join(domain_output_path, "sensitive_exposure.txt")
+    # Initialize dns_resolutions_file path early as well
+    dns_resolutions_file = os.path.join(domain_output_path, "subdomain_dns_resolutions.json")
+
 
     if not all_discovered_subdomains:
         print(f"[WARNING] No subdomains found by any tool for {target_domain}.")
         # Create all expected files as empty
-        for f_path in [all_subdomains_file, subdomains_alive_file, subdomains_dead_file, way_kat_file, urls_alive_file, urls_dead_file, takeover_file, wildcard_file, sensitive_exposure_file]:
-            open(f_path, 'w').close() # Ensure sensitive_exposure_file is also created
-        with open(metadata_file, "w") as f: f.write("{}")
+        for f_path in [all_subdomains_file, dns_resolutions_file, subdomains_alive_file, subdomains_dead_file, way_kat_file, urls_alive_file, urls_dead_file, takeover_file, wildcard_file, sensitive_exposure_file]:
+            open(f_path, 'w').close()
+        with open(metadata_file, "w") as f: f.write("{}") # metadata also empty
         return {
             "target_domain": target_domain, "status": "completed_no_subdomains_found_by_any_tool",
-            "all_subdomains_file": all_subdomains_file, "subdomains_alive_file": subdomains_alive_file,
+            "all_subdomains_file": all_subdomains_file,
+            "dns_resolutions_file": dns_resolutions_file, # Ensure it's in all return paths
+            "subdomains_alive_file": subdomains_alive_file,
             "subdomains_dead_file": subdomains_dead_file, "way_kat_file": way_kat_file,
             "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
-            "sensitive_exposure_file": sensitive_exposure_file, # Include in return
+            "sensitive_exposure_file": sensitive_exposure_file,
             "takeover_vulnerable_file": takeover_file, "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -197,7 +225,36 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             f.write(sub + "\n")
     print(f"[INFO] Consolidated {len(sorted_subdomains)} unique subdomains to {all_subdomains_file}")
 
-    # --- Phase 1b: Subdomain Liveness ---
+    # --- Phase 1b: DNS Resolution (Optional - can be done before or after liveness) ---
+    print("\n--- Performing DNS Resolution for Discovered Subdomains ---")
+    dns_resolutions_file = os.path.join(domain_output_path, "subdomain_dns_resolutions.json")
+    dns_data = {}
+    # Using a simple synchronous approach for DNS resolution for now.
+    # For very large lists, async DNS resolution (e.g., with aiodns) would be better.
+    import socket
+    for sub_idx, subdomain_to_resolve in enumerate(sorted_subdomains):
+        if sub_idx > 0 and sub_idx % 100 == 0: # Log progress
+            print(f"[DNS] Resolved {sub_idx}/{len(sorted_subdomains)} subdomains...")
+        try:
+            # gethostbyname_ex can return multiple IPs (canonical name, aliases, ipaddrlist)
+            # We are interested in ipaddrlist
+            _, _, ipaddrlist = socket.gethostbyname_ex(subdomain_to_resolve)
+            if ipaddrlist:
+                dns_data[subdomain_to_resolve] = ipaddrlist
+            else:
+                dns_data[subdomain_to_resolve] = ["NXDOMAIN or No A/AAAA record"] # Or some other indicator
+        except socket.gaierror: # getaddrinfo error (e.g., NXDOMAIN)
+            dns_data[subdomain_to_resolve] = ["ResolutionFailed"]
+        except Exception as e:
+            dns_data[subdomain_to_resolve] = [f"Error: {str(e)}"]
+            print(f"[DNS ERROR] for {subdomain_to_resolve}: {e}")
+
+    with open(dns_resolutions_file, "w") as f_dns:
+        json.dump(dns_data, f_dns, indent=4)
+    print(f"[INFO] DNS resolution data saved to {dns_resolutions_file}")
+
+
+    # --- Phase 1c: Subdomain Liveness ---
     print("\n--- Checking Subdomain Liveness ---")
     subdomain_liveness_results = asyncio.run(get_liveness_async(all_discovered_subdomains, is_url_check=False))
 
@@ -225,10 +282,12 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         with open(metadata_file, "w") as f: f.write("{}")
         return {
             "target_domain": target_domain, "status": "completed_no_live_subdomains",
-            "all_subdomains_file": all_subdomains_file, "subdomains_alive_file": subdomains_alive_file,
+            "all_subdomains_file": all_subdomains_file,
+            "dns_resolutions_file": dns_resolutions_file, # Ensure it's in all return paths
+            "subdomains_alive_file": subdomains_alive_file,
             "subdomains_dead_file": subdomains_dead_file, "way_kat_file": way_kat_file,
             "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
-            "sensitive_exposure_file": sensitive_exposure_file, # Include in return
+            "sensitive_exposure_file": sensitive_exposure_file,
             "takeover_vulnerable_file": takeover_file, "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -259,10 +318,12 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         with open(metadata_file, "w") as f: f.write("{}")
         return {
             "target_domain": target_domain, "status": "completed_no_urls_discovered",
-            "all_subdomains_file": all_subdomains_file, "subdomains_alive_file": subdomains_alive_file,
+            "all_subdomains_file": all_subdomains_file,
+            "dns_resolutions_file": dns_resolutions_file, # Ensure it's in all return paths
+            "subdomains_alive_file": subdomains_alive_file,
             "subdomains_dead_file": subdomains_dead_file, "way_kat_file": way_kat_file,
             "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
-            "sensitive_exposure_file": sensitive_exposure_file, # Include in return
+            "sensitive_exposure_file": sensitive_exposure_file,
             "takeover_vulnerable_file": takeover_file, "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -328,12 +389,13 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         "target_domain": target_domain,
         "status": "completed_full_recon_flow", # This status might need to be more dynamic based on stages completed
         "all_subdomains_file": all_subdomains_file,
+        "dns_resolutions_file": dns_resolutions_file, # Added DNS resolution file
         "subdomains_alive_file": subdomains_alive_file,
         "subdomains_dead_file": subdomains_dead_file,
         "way_kat_file": way_kat_file,
         "urls_alive_file": urls_alive_file,
         "urls_dead_file": urls_dead_file,
-        "sensitive_exposure_file": sensitive_exposure_file, # Add this to results
+        "sensitive_exposure_file": sensitive_exposure_file,
         "takeover_vulnerable_file": takeover_file,
         "wildcard_domains_file": wildcard_file,
         "metadata_file": metadata_file,

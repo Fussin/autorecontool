@@ -24,8 +24,9 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
 ## Specific Instructions
 -   **Reconnaissance Workflow Output Files (`ch_modules/subdomain_enumeration/main.py`):**
     -   `Subdomain.txt`: Consolidated unique subdomains from Subfinder, Sublist3r, Amass, Assetfinder.
-    -   `subdomains_alive.txt`: Subdomains from `Subdomain.txt` that responded to HTTP/HTTPS checks (via httpx).
-    -   `subdomains_dead.txt`: Subdomains from `Subdomain.txt` that did not respond.
+    -   `subdomain_dns_resolutions.json`: JSON file mapping each discovered subdomain to a list of its resolved IP addresses (or an error/status message).
+    -   `subdomains_alive.txt`: Subdomains from `Subdomain.txt` that responded to HTTP/HTTPS checks on ports 80, 443, 8000, or 8080 (via httpx).
+    -   `subdomains_dead.txt`: Subdomains from `Subdomain.txt` that did not respond on any of the probed ports.
     -   `Way_kat.txt`: Consolidated unique URLs discovered by Waybackurls and Katana run against live subdomains.
     -   `alive_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 200-399 status codes.
     -   `dead_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 400-599 status codes or failed requests (includes status code in output).

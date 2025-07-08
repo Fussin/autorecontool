@@ -89,7 +89,9 @@ The script will:
 *   Create an output directory structure like `output_dir/target_domain/`.
 *   Generate the following files (among others):
     *   `Subdomain.txt`: All unique subdomains found.
-    *   `subdomains_alive.txt`: Live subdomains.
+    *   `subdomain_dns_resolutions.json`: JSON mapping subdomains to their resolved IP addresses.
+    *   `subdomains_alive.txt`: Live subdomains (checked on ports 80, 443, 8000, 8080).
+    *   `subdomains_dead.txt`: Subdomains that did not respond on the probed ports.
     *   `Way_kat.txt`: All URLs found from waybackurls/katana.
     *   `alive_domain.txt`: Live URLs (200s/30xs).
     *   `dead_domain.txt`: Dead/Error URLs (40xs/50xs).
