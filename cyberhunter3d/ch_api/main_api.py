@@ -47,8 +47,21 @@ def create_app():
     print(f"Scan output base directory: {app.config['SCAN_OUTPUT_BASE_DIR']}")
 
     # --- Register Blueprints (if you structure your routes in separate files) ---
-    from .routes.scan_routes import scan_bp # Corrected import path relative to ch_api
-    app.register_blueprint(scan_bp, url_prefix='/api/v1/scan') # Apply URL prefix here
+    from .routes.scan_routes import scan_bp
+    app.register_blueprint(scan_bp, url_prefix='/api/v1/scan')
+
+    from .routes.auth_routes import auth_bp
+    app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
+
+    # Register Web UI blueprint (served from the root or a specific path like /ui)
+    # Assuming ch_web is a sibling package to ch_api
+    try:
+        from ch_web.routes import web_bp as main_web_bp
+        app.register_blueprint(main_web_bp) # Serves login page at '/' and '/login'
+        print("Web UI blueprint registered.")
+    except ImportError:
+        print("[WARN] ch_web.routes (web_bp) not found or could not be imported. Web UI will not be available.")
+
 
     # --- Basic Routes (can be moved to blueprint files later) ---
     @app.route('/health', methods=['GET'])

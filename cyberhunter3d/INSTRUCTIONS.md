@@ -157,15 +157,39 @@ You can use `curl` or tools like Postman to interact with the API.
     curl http://localhost:5000/api/v1/scan/recon/results/YOUR_SCAN_ID
     ```
     Expected Response (200 OK if completed): A JSON object containing paths to all generated output files.
+    Example (paths will be absolute on your system, shown here relative to `instance/` for brevity):
     ```json
     {
-        "all_subdomains_file": "scan_results_api/example.com/Subdomain.txt",
-        "metadata_file": "scan_results_api/example.com/subdomain_technologies.json",
+        "all_subdomains_file": ".../instance/scan_outputs/example.com/Subdomain.txt",
+        "sensitive_exposure_file": ".../instance/scan_outputs/example.com/sensitive_exposure.txt",
         "status": "completed_no_urls_discovered", // Example status
         // ... other file paths
     }
     ```
-    If the scan is not yet complete, you'll get a 202 response. If failed, a 500.
+    If the scan is not yet complete, you'll get a 202 response. If failed, a 200 response with status "failed" in the body (or 500 for some DB errors).
+
+*   **Accessing the Mock Login Page:**
+    Once the API server is running (using `python -m ch_api.main_api`), you can open a web browser and navigate to:
+    *   `http://localhost:5000/`
+    *   or `http://localhost:5000/login`
+    This will display the placeholder login page. The login and 2FA are mock interactions and do not perform real authentication. The page is styled with a basic cyberpunk theme.
+
+*   **Interacting with Mock Auth API Endpoints (via `curl`):**
+    *   **Login (mock - username: "testuser", password: "password123"):**
+        ```bash
+        curl -X POST -H "Content-Type: application/json" -d '{"username": "testuser", "password": "password123"}' http://localhost:5000/api/v1/auth/login
+        ```
+        Expected mock success: `{"status":"success","message":"Login successful. Please proceed with 2FA.","user_id":"mock_user_123","session_token_mock":"mock_session_abcxyz"}`
+    *   **Verify 2FA (mock - code: "123456"):**
+        ```bash
+        curl -X POST -H "Content-Type: application/json" -d '{"two_fa_code": "123456"}' http://localhost:5000/api/v1/auth/verify-2fa
+        ```
+        Expected mock success: `{"status":"success","message":"2FA verification successful. Access granted (mock).","access_token_mock":"mock_jwt_token_for_full_access"}`
+    *   **Logout (mock):**
+        ```bash
+        curl -X POST http://localhost:5000/api/v1/auth/logout
+        ```
+        Expected mock success: `{"status":"success","message":"Successfully logged out (mock)."}`
 
 ## 4. Current Limitations & Notes
 

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberHunter 3D - Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <header>
+            <h1>CyberHunter 3D</h1>
+            <p>Platform Entry Point</p>
+        </header>
+
+        <form id="loginForm">
+            <div class="form-group" id="usernameGroup">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group" id="passwordGroup">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="button" id="loginButton">Login</button>
+        </form>
+
+        <form id="twoFactorForm" style="display:none;">
+            <p>A verification code has been sent (simulated).</p>
+            <div class="form-group" id="twoFaGroup">
+                <label for="twoFaCode">2FA Code</label>
+                <input type="text" id="twoFaCode" name="twoFaCode" required>
+            </div>
+            <button type="button" id="verifyTwoFaButton">Verify Code</button>
+        </form>
+
+        <div id="messageArea" class="message"></div>
+
+    </div>
+    <!-- Basic JS for mock flow, can be moved to a separate file later -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const loginForm = document.getElementById('loginForm');
+            const twoFactorForm = document.getElementById('twoFactorForm');
+            const loginButton = document.getElementById('loginButton');
+            const verifyTwoFaButton = document.getElementById('verifyTwoFaButton');
+            const messageArea = document.getElementById('messageArea');
+
+            if (loginButton) {
+                loginButton.addEventListener('click', function () {
+                    const username = document.getElementById('username').value;
+                    // In a real app, you'd call the /api/v1/auth/login endpoint here
+                    // For this mock, we just simulate success if username is not empty
+                    if (username) {
+                        messageArea.textContent = 'Login successful (mock). Please enter 2FA code.';
+                        messageArea.className = 'message success';
+                        loginForm.style.display = 'none';
+                        twoFactorForm.style.display = 'block';
+                    } else {
+                        messageArea.textContent = 'Mock login failed: Username cannot be empty.';
+                        messageArea.className = 'message error';
+                    }
+                });
+            }
+
+            if (verifyTwoFaButton) {
+                verifyTwoFaButton.addEventListener('click', function () {
+                    const twoFaCode = document.getElementById('twoFaCode').value;
+                    // In a real app, you'd call the /api/v1/auth/verify-2fa endpoint
+                    if (twoFaCode) { // Simple mock: any code is fine
+                        messageArea.textContent = '2FA Verification Successful (mock). Access Granted!';
+                        messageArea.className = 'message success';
+                        // Potentially redirect or unlock UI here
+                        // twoFactorForm.style.display = 'none'; // Optionally hide form
+                    } else {
+                        messageArea.textContent = 'Mock 2FA failed: Code cannot be empty.';
+                        messageArea.className = 'message error';
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

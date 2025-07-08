@@ -59,8 +59,11 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
             -   `updated_at` (TEXT ISO 8601)
             -   `results_json` (TEXT: JSON string of result file paths)
             -   `error_message` (TEXT)
-    -   The main API application is in `ch_api/main_api.py` (initializes DB). Routes are in `ch_api/routes/scan_routes.py` (interact with DB).
-    -   **Endpoints (base: `/api/v1/scan` - prefix applied in `main_api.py` where `scan_bp` is registered):**
+    -   The main API application is in `ch_api/main_api.py` (initializes DB, registers all blueprints).
+    -   Scan routes are in `ch_api/routes/scan_routes.py`.
+    -   Placeholder authentication API routes are in `ch_api/routes/auth_routes.py`.
+    -   Web UI routes (serving login page) are in `ch_web/routes.py`. The `ch_web` directory contains `templates/login.html` and `static/css/style.css`.
+    -   **Scan API Endpoints (base: `/api/v1/scan`):**
         -   `POST /recon`: Initiates a new reconnaissance scan.
             -   Request Body: `{"target": "example.com"}`
             -   Response (202): `{"message": "...", "scan_id": "...", "status_endpoint": "...", "results_endpoint": "..."}`
@@ -69,7 +72,19 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
         -   `GET /recon/results/<scan_id>`: Retrieves the results of a completed scan (paths to files).
             -   Response (200 if completed): Dictionary of result file paths.
             -   Response (202 if in progress, 404 if not found, 500 if failed).
+    -   **Auth API Endpoints (Placeholders - base: `/api/v1/auth`):**
+        -   `POST /login`: Mock user login (username: "testuser", password: "password123").
+            -   Request: `{"username": "...", "password": "..."}`
+            -   Response (200 on mock success): `{"status": "success", "message": "Login successful. Please proceed with 2FA."}`
+            -   Response (401 on mock failure): `{"status": "error", "message": "Invalid username or password (mock)."}`
+        -   `POST /verify-2fa`: Mock 2FA verification (code: "123456").
+            -   Request: `{"two_fa_code": "..."}`
+            -   Response (200 on mock success): `{"status": "success", "message": "2FA verification successful. Access granted (mock)."}`
+            -   Response (401 on mock failure): `{"status": "error", "message": "Invalid 2FA code (mock)."}`
+        -   `POST /logout`: Mock user logout.
+            -   Response (200): `{"status": "success", "message": "Successfully logged out (mock)."}`
     -   A basic `/health` endpoint is available at the root of the API server (`ch_api/main_api.py`).
+    -   A placeholder login page (`login.html`) is served at `/` or `/login` by the `ch_web` module.
 
 ## Future Vision (3D Interface & AI)
 While the initial focus might be on backend logic and tool integration, keep the ultimate vision of a 3D holographic interface and AI-driven analysis in mind. Design components in a way that they can eventually feed data into such a system. For instance, ensure structured data output that can be easily parsed and visualized.
