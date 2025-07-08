@@ -73,10 +73,75 @@ def start_recon_scan():
 
     return jsonify({
         "message": "Reconnaissance scan initiated.",
-        "scan_id": scan_id,
-        "status_endpoint": f"/api/v1/scan/recon/status/{scan_id}", # Assuming /api/v1/scan is the blueprint prefix
+        "scan_id": scan_id, # This is for a single target, will be part of a list for batch submission
+        "target": target_domain, # Also for single target context
+        "status_endpoint": f"/api/v1/scan/recon/status/{scan_id}",
         "results_endpoint": f"/api/v1/scan/recon/results/{scan_id}"
     }), 202
+
+# New endpoint for submitting multiple targets
+@scan_bp.route('/targets/submit', methods=['POST'])
+def submit_targets_for_scan():
+    """
+    Accepts a list of targets, validates them (basic), and initiates scans for valid ones.
+    """
+    data = request.get_json()
+    if not data or 'targets' not in data or not isinstance(data['targets'], list):
+        return jsonify({"error": "Request body must be JSON with a 'targets' list."}), 400
+
+    targets_to_scan = data['targets']
+    if not targets_to_scan:
+        return jsonify({"error": "The 'targets' list cannot be empty."}), 400
+
+    scan_details = []
+    validation_errors = []
+    processed_targets_count = 0
+
+    db_path = current_app.config['DATABASE']
+    output_dir_for_scans = current_app.config["SCAN_OUTPUT_BASE_DIR"]
+
+    for target in targets_to_scan:
+        target_str = str(target).strip()
+        if not target_str:
+            validation_errors.append({"target": target_str, "error": "Target cannot be empty."})
+            continue
+
+        # Basic validation: for now, just check if it's a non-empty string and contains a dot (very naive)
+        # More robust validation (domain regex, IP/CIDR format) should be added.
+        if '.' not in target_str and not (target_str.replace('.', '').isdigit()): # crude IP check placeholder
+             validation_errors.append({"target": target_str, "error": "Invalid target format (basic check failed)."})
+             continue
+
+        processed_targets_count += 1
+        scan_id = str(uuid.uuid4())
+
+        try:
+            db_handler.add_scan_job(scan_id, target_str, db_path=db_path)
+            executor.submit(run_scan_wrapper, scan_id, target_str, output_dir_for_scans, db_path)
+            scan_details.append({
+                "target": target_str,
+                "scan_id": scan_id,
+                "status_endpoint": f"/api/v1/scan/recon/status/{scan_id}",
+                "results_endpoint": f"/api/v1/scan/recon/results/{scan_id}"
+            })
+            print(f"[API] Queued scan {scan_id} for target: {target_str} via batch submission.")
+        except Exception as e:
+            print(f"[API ERROR] Failed to initiate scan for {target_str} from batch: {e}")
+            validation_errors.append({"target": target_str, "error": f"Failed to initiate scan: {str(e)}"})
+
+    response_message = "Targets processed."
+    if not scan_details and not validation_errors:
+        response_message = "No targets were provided or processed."
+    elif not scan_details and validation_errors:
+        response_message = "All submitted targets had validation errors."
+
+    return jsonify({
+        "message": response_message,
+        "submitted_targets": len(targets_to_scan),
+        "successfully_queued_scans": len(scan_details),
+        "scan_details": scan_details, # List of dicts for each successful scan
+        "errors": validation_errors   # List of dicts for targets that failed validation/queueing
+    }), 200 # 200 OK as the submission request itself was processed, even if some targets failed.
 
 
 @scan_bp.route('/recon/status/<scan_id>', methods=['GET'])

@@ -172,7 +172,32 @@ You can use `curl` or tools like Postman to interact with the API.
     Once the API server is running (using `python -m ch_api.main_api`), you can open a web browser and navigate to:
     *   `http://localhost:5000/`
     *   or `http://localhost:5000/login`
-    This will display the placeholder login page. The login and 2FA are mock interactions and do not perform real authentication. The page is styled with a basic cyberpunk theme.
+    This will display the placeholder login page.
+    *   `http://localhost:5000/targets`
+    This will display the target input page.
+
+*   **Interacting with Scan & Target Submission APIs (via `curl`):**
+    *   **Submit Single Target for Scan:** (This is the original scan endpoint)
+        ```bash
+        curl -X POST -H "Content-Type: application/json" -d '{"target": "example.com"}' http://localhost:5000/api/v1/scan/recon
+        ```
+    *   **Submit Multiple Targets for Scans:**
+        ```bash
+        curl -X POST -H "Content-Type: application/json" -d '{"targets": ["example.com", "sub.example.org", "1.2.3.4"]}' http://localhost:5000/api/v1/targets/submit
+        ```
+        Expected Response (200 OK):
+        ```json
+        {
+            "message": "Targets processed.",
+            "submitted_targets": 3,
+            "successfully_queued_scans": 3, // or fewer if some had errors
+            "scan_details": [
+                { "target": "example.com", "scan_id": "...", "status_endpoint": "...", "results_endpoint": "..." },
+                // ... other targets
+            ],
+            "errors": [] // or list of errors if any
+        }
+        ```
 
 *   **Interacting with Mock Auth API Endpoints (via `curl`):**
     *   **Login (mock - username: "testuser", password: "password123"):**

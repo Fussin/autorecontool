@@ -114,3 +114,81 @@ button[type="button"]:hover {
         font-size: 2em;
     }
 }
+
+/* Styles for target_input.html specifically, if needed, or can be merged if general enough */
+.target-input-container { /* Duplicates login-container but allows for different max-width etc. if needed */
+    background-color: #2a2a3e;
+    padding: 30px 40px;
+    border-radius: 10px;
+    box-shadow: 0 0 25px rgba(0, 255, 255, 0.2);
+    width: 100%;
+    max-width: 600px; /* Wider for text area */
+    text-align: center;
+    border: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+textarea#targetsInput { /* More specific selector */
+    width: calc(100% - 22px); /* Full width minus padding and border */
+    min-height: 150px;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #007777;
+    background-color: #1e1e2f;
+    color: #e0e0e0;
+    font-size: 1em;
+    margin-bottom: 20px;
+    font-family: 'Consolas', 'Monaco', monospace; /* Monospaced for easier target list view */
+    resize: vertical; /* Allow vertical resize */
+}
+
+textarea#targetsInput:focus {
+    outline: none;
+    border-color: #00ffff; /* Cyan focus border */
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+#responseMessageArea {
+    margin-top: 20px;
+    text-align: left;
+    max-height: 250px; /* Increased height */
+    overflow-y: auto;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #1e1e2f; /* Dark background for message area */
+    border: 1px solid #007777; /* Similar to inputs */
+}
+#responseMessageArea p {
+    margin: 0 0 5px 0;
+}
+#responseMessageArea ul {
+    list-style-type: none;
+    padding-left: 10px;
+}
+#responseMessageArea ul li {
+    margin-bottom: 3px;
+    word-break: break-all;
+}
+#responseMessageArea a {
+    color: #00ffff;
+    text-decoration: none;
+}
+#responseMessageArea a:hover {
+    text-decoration: underline;
+}
+
+.nav-link { /* For "Back to Login" link */
+    display: inline-block; /* Changed to inline-block for better centering if needed */
+    margin-top: 25px;
+    color: #00ffff;
+    text-decoration: none;
+    padding: 8px 15px;
+    border: 1px solid #00ffff;
+    border-radius: 5px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.nav-link:hover {
+    background-color: #00ffff;
+    color: #1a1a2e;
+    text-decoration: none;
+}

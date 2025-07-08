@@ -23,11 +23,12 @@ Initial project structure setup. The tool currently features a comprehensive rec
     - Asynchronous scan execution using `ThreadPoolExecutor`.
     - Persistent storage of scan jobs and results metadata using SQLite (`instance/scan_jobs.db`).
 - **Web Interface (Placeholder):**
-    - Basic HTML/CSS login page (`ch_web/templates/login.html`) with mock 2FA UI flow.
-    - Served by the main Flask application at `/` or `/login`.
+    - Basic HTML/CSS login page (`ch_web/templates/login.html`) with mock 2FA UI flow, served at `/login`.
+    - Basic HTML target input page (`ch_web/templates/target_input.html`) for submitting multiple targets, served at `/targets`.
 - **Authentication API (Placeholders `ch_api/routes/auth_routes.py`):**
     - Mock endpoints for `/login`, `/verify-2fa`, `/logout`. No real authentication.
-
+- **Target Submission API (`ch_api/routes/scan_routes.py`):**
+    - Endpoint `POST /api/v1/targets/submit` to accept a list of targets and initiate scans for them.
 
 ## Modules (Planned & In Progress)
 - Core Engine (Foundation)

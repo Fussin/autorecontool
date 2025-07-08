@@ -15,8 +15,12 @@ web_bp = Blueprint('web_ui', __name__,
 @web_bp.route('/login')
 def login_page():
     """Serves the main login page."""
-    # Renders login.html from the 'templates' folder within 'ch_web'
     return render_template('login.html', title="CyberHunter Login")
+
+@web_bp.route('/targets')
+def target_input_page():
+    """Serves the target input page."""
+    return render_template('target_input.html', title="Submit Targets")
 
 # You could add other web pages here later, like a dashboard:
 # @web_bp.route('/dashboard')

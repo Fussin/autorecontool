@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberHunter 3D - Target Input</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Additional styles specific to this page */
+        .target-input-container {
+            background-color: #2a2a3e;
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.2);
+            width: 100%;
+            max-width: 600px; /* Wider for text area */
+            text-align: center;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+        textarea {
+            width: calc(100% - 22px); /* Full width minus padding and border */
+            min-height: 150px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #007777;
+            background-color: #1e1e2f;
+            color: #e0e0e0;
+            font-size: 1em;
+            margin-bottom: 20px;
+            resize: vertical; /* Allow vertical resize */
+        }
+        .nav-link {
+            display: block;
+            margin-top: 20px;
+            color: #00ffff;
+            text-decoration: none;
+        }
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="target-input-container">
+        <header>
+            <h1>CyberHunter 3D</h1>
+            <p>Target Input Interface</p>
+        </header>
+
+        <form id="targetForm">
+            <div class="form-group">
+                <label for="targets">Enter Targets (one per line - e.g., domains, IPs)</label>
+                <textarea id="targetsInput" name="targets" placeholder="example.com&#10;sub.example.org&#10;192.168.1.10" required></textarea>
+            </div>
+            <button type="button" id="submitTargetsButton">Submit Targets for Scanning</button>
+        </form>
+
+        <div id="responseMessageArea" class="message" style="margin-top: 20px; text-align: left; max-height: 200px; overflow-y: auto;">
+            <!-- API responses will be shown here -->
+        </div>
+
+        <a href="{{ url_for('web_ui.login_page') }}" class="nav-link">Back to Login</a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const submitButton = document.getElementById('submitTargetsButton');
+            const targetsInput = document.getElementById('targetsInput');
+            const responseMessageArea = document.getElementById('responseMessageArea');
+
+            if (submitButton) {
+                submitButton.addEventListener('click', function () {
+                    const targetsRaw = targetsInput.value.trim();
+                    if (!targetsRaw) {
+                        responseMessageArea.className = 'message error';
+                        responseMessageArea.innerHTML = '<p>Error: Target input cannot be empty.</p>';
+                        return;
+                    }
+
+                    // Split by newline, then filter out empty lines and trim whitespace
+                    const targetsArray = targetsRaw.split('\\n').map(t => t.trim()).filter(t => t.length > 0);
+
+                    if (targetsArray.length === 0) {
+                        responseMessageArea.className = 'message error';
+                        responseMessageArea.innerHTML = '<p>Error: No valid targets entered.</p>';
+                        return;
+                    }
+
+                    responseMessageArea.className = 'message'; // Reset
+                    responseMessageArea.innerHTML = '<p>Submitting targets...</p>';
+
+                    // API call to the backend
+                    fetch('/api/v1/scan/targets/submit', { // Corrected API endpoint path
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ targets: targetsArray }),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('API Response:', data);
+                        responseMessageArea.className = 'message ' + (data.scan_ids && data.scan_ids.length > 0 ? 'success' : 'error');
+                        let htmlResponse = `<p>${data.message || 'Received response:'}</p>`;
+                        if (data.submitted_targets) {
+                            htmlResponse += `<p>Targets processed: ${data.submitted_targets}</p>`;
+                        }
+                        if (data.scan_ids && data.scan_ids.length > 0) {
+                            htmlResponse += '<p>Scan IDs initiated:</p><ul>';
+                            data.scan_ids.forEach(scan => {
+                                htmlResponse += `<li>Target: ${scan.target}, Scan ID: <a href="/api/v1/scan/recon/status/${scan.scan_id}" target="_blank">${scan.scan_id}</a></li>`;
+                            });
+                            htmlResponse += '</ul>';
+                        }
+                        if (data.errors && data.errors.length > 0) {
+                            htmlResponse += '<p>Errors:</p><ul>';
+                            data.errors.forEach(err => {
+                                htmlResponse += `<li>Target: ${err.target}, Error: ${err.error}</li>`;
+                            });
+                            htmlResponse += '</ul>';
+                        }
+                        responseMessageArea.innerHTML = htmlResponse;
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                        responseMessageArea.className = 'message error';
+                        responseMessageArea.innerHTML = `<p>Error submitting targets: ${error}. Check console and ensure API is running.</p>`;
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>

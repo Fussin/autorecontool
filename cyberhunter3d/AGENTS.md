@@ -62,11 +62,14 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   The main API application is in `ch_api/main_api.py` (initializes DB, registers all blueprints).
     -   Scan routes are in `ch_api/routes/scan_routes.py`.
     -   Placeholder authentication API routes are in `ch_api/routes/auth_routes.py`.
-    -   Web UI routes (serving login page) are in `ch_web/routes.py`. The `ch_web` directory contains `templates/login.html` and `static/css/style.css`.
-    -   **Scan API Endpoints (base: `/api/v1/scan`):**
-        -   `POST /recon`: Initiates a new reconnaissance scan.
+    -   Web UI routes (serving login page and target input page) are in `ch_web/routes.py`. The `ch_web` directory contains `templates/login.html`, `templates/target_input.html` and `static/css/style.css`.
+    -   **Scan & Target Submission API Endpoints:**
+        -   Scan initiation for a single target: `POST /api/v1/scan/recon`
             -   Request Body: `{"target": "example.com"}`
-            -   Response (202): `{"message": "...", "scan_id": "...", "status_endpoint": "...", "results_endpoint": "..."}`
+            -   Response (202): `{"message": "...", "scan_id": "...", "target":"...", "status_endpoint": "...", "results_endpoint": "..."}`
+        -   Target submission for multiple targets: `POST /api/v1/targets/submit` (within `scan_routes.py`)
+            -   Request Body: `{"targets": ["example.com", "another.org"]}`
+            -   Response (200): `{"message": "...", "submitted_targets": count, "successfully_queued_scans": count, "scan_details": [{...}], "errors": [{...}]}`
         -   `GET /recon/status/<scan_id>`: Retrieves the status of a scan.
             -   Response (200): `{"scan_id": "...", "target": "...", "status": "queued|running|completed|failed", "error": "..."}`
         -   `GET /recon/results/<scan_id>`: Retrieves the results of a completed scan (paths to files).
