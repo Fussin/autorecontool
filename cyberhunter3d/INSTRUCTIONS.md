@@ -93,6 +93,7 @@ The script will:
     *   `Way_kat.txt`: All URLs found from waybackurls/katana.
     *   `alive_domain.txt`: Live URLs (200s/30xs).
     *   `dead_domain.txt`: Dead/Error URLs (40xs/50xs).
+    *   `sensitive_exposure.txt`: URLs of potential sensitive files/paths found.
 
 ## 3. Running the API Server
 

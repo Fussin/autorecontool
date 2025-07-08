@@ -16,9 +16,10 @@ Initial project structure setup. The tool currently features a comprehensive rec
     - Subdomain Liveness Checks (httpx)
     - URL Discovery (Waybackurls, Katana)
     - URL Filtering (httpx status codes)
+    - Basic Sensitive Data Discovery (common files/paths like `.env`, `.git/config`, backups)
 - **API (`ch_api/`):**
     - Flask-based server.
-    - Endpoints to start reconnaissance scans, check status, and retrieve results.
+    - Endpoints to start reconnaissance scans (including sensitive data discovery), check status, and retrieve results.
     - Asynchronous scan execution using `ThreadPoolExecutor`.
 
 ## Modules (Planned & In Progress)

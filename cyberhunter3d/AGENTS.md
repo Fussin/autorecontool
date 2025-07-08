@@ -29,10 +29,16 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   `Way_kat.txt`: Consolidated unique URLs discovered by Waybackurls and Katana run against live subdomains.
     -   `alive_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 200-399 status codes.
     -   `dead_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 400-599 status codes or failed requests (includes status code in output).
+    -   `sensitive_exposure.txt`: URLs of potential sensitive files/paths discovered (e.g., `.env`, `.git/config`, `backup.sql`).
     -   Placeholders: `subdomain_takeover.txt`, `wildcard_domains.txt`, `subdomain_technologies.json` are also created.
+-   **Sensitive Data Discovery Module (`ch_modules/sensitive_data_discovery/main.py`):**
+    -   Reads URLs from a specified input file (e.g., `alive_domain.txt` from the recon workflow).
+    -   Checks against a list of common sensitive patterns (file extensions, paths).
+    -   Uses `httpx` to verify if these potential sensitive URLs are accessible (200 OK).
+    -   Outputs findings to `sensitive_exposure.txt`.
 -   **Tool Dependencies for Reconnaissance Workflow:**
     -   **Python Libraries (in `requirements.txt`):**
-        -   `httpx`: For HTTP/S liveness checks.
+        -   `httpx`: For HTTP/S liveness checks and sensitive data discovery URL checks.
         -   `sublist3r`: For subdomain enumeration.
         -   `Flask`: Python library for the API server. Included in `requirements.txt`.
     -   **Go-based Tools (Manual Install - Must be in PATH):**

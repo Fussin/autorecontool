@@ -172,17 +172,21 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         all_discovered_subdomains.update(run_amass(target_domain))
         all_discovered_subdomains.update(run_assetfinder(target_domain))
 
+    # Initialize sensitive_exposure_file path early for all return paths
+    sensitive_exposure_file = os.path.join(domain_output_path, "sensitive_exposure.txt")
+
     if not all_discovered_subdomains:
         print(f"[WARNING] No subdomains found by any tool for {target_domain}.")
         # Create all expected files as empty
-        for f_path in [all_subdomains_file, subdomains_alive_file, subdomains_dead_file, way_kat_file, urls_alive_file, urls_dead_file, takeover_file, wildcard_file]:
-            open(f_path, 'w').close()
+        for f_path in [all_subdomains_file, subdomains_alive_file, subdomains_dead_file, way_kat_file, urls_alive_file, urls_dead_file, takeover_file, wildcard_file, sensitive_exposure_file]:
+            open(f_path, 'w').close() # Ensure sensitive_exposure_file is also created
         with open(metadata_file, "w") as f: f.write("{}")
         return {
             "target_domain": target_domain, "status": "completed_no_subdomains_found_by_any_tool",
             "all_subdomains_file": all_subdomains_file, "subdomains_alive_file": subdomains_alive_file,
             "subdomains_dead_file": subdomains_dead_file, "way_kat_file": way_kat_file,
             "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
+            "sensitive_exposure_file": sensitive_exposure_file, # Include in return
             "takeover_vulnerable_file": takeover_file, "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -215,7 +219,7 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
     if not live_subs_list:
         print("[WARNING] No live subdomains found. URL discovery and filtering will be skipped.")
         # Create empty files for URL stages
-        for f_path in [way_kat_file, urls_alive_file, urls_dead_file]: open(f_path, 'w').close()
+        for f_path in [way_kat_file, urls_alive_file, urls_dead_file, sensitive_exposure_file]: open(f_path, 'w').close()
         with open(takeover_file, "w") as f: pass
         with open(wildcard_file, "w") as f: pass
         with open(metadata_file, "w") as f: f.write("{}")
@@ -224,6 +228,7 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "all_subdomains_file": all_subdomains_file, "subdomains_alive_file": subdomains_alive_file,
             "subdomains_dead_file": subdomains_dead_file, "way_kat_file": way_kat_file,
             "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
+            "sensitive_exposure_file": sensitive_exposure_file, # Include in return
             "takeover_vulnerable_file": takeover_file, "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -248,7 +253,7 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
     if not sorted_urls:
         print("[WARNING] No URLs found by Waybackurls or Katana.")
         # Create empty files for URL filtering stage
-        for f_path in [urls_alive_file, urls_dead_file]: open(f_path, 'w').close()
+        for f_path in [urls_alive_file, urls_dead_file, sensitive_exposure_file]: open(f_path, 'w').close()
         with open(takeover_file, "w") as f: pass
         with open(wildcard_file, "w") as f: pass
         with open(metadata_file, "w") as f: f.write("{}")
@@ -257,6 +262,7 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "all_subdomains_file": all_subdomains_file, "subdomains_alive_file": subdomains_alive_file,
             "subdomains_dead_file": subdomains_dead_file, "way_kat_file": way_kat_file,
             "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
+            "sensitive_exposure_file": sensitive_exposure_file, # Include in return
             "takeover_vulnerable_file": takeover_file, "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -286,6 +292,33 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         for url_status in sorted(dead_urls_list): f.write(url_status + "\n")
     print(f"[INFO] Found {len(dead_urls_list)} dead/error URLs (40xs/50xs/failed). Saved to {urls_dead_file}")
 
+    # --- Phase 4: Sensitive Data Discovery ---
+    # Initialize sensitive_exposure_file path for the results dict even if discovery is skipped
+    sensitive_exposure_file = os.path.join(domain_output_path, "sensitive_exposure.txt")
+    if not live_urls_list:
+        print("[INFO] No live URLs found after filtering. Skipping sensitive data discovery.")
+        with open(sensitive_exposure_file, "w") as f: f.write("# No live URLs to scan for sensitive data.\n")
+    else:
+        print("\n--- Running Sensitive Data Discovery ---")
+        try:
+            # Dynamically import here to avoid circular dependency issues if modules call each other
+            # and to keep it optional if the module isn't present.
+            from ..sensitive_data_discovery.main import find_sensitive_data
+            sdd_results = find_sensitive_data(
+                target_urls_file=urls_alive_file, # Use the live URLs from this workflow
+                output_dir=domain_output_path     # Save in the same target-specific directory
+            )
+            if sdd_results.get("sensitive_exposure_file"):
+                sensitive_exposure_file = sdd_results["sensitive_exposure_file"] # Update with actual path if returned
+            print(f"Sensitive data discovery status: {sdd_results.get('status')}")
+        except ImportError:
+            print("[WARN] Sensitive data discovery module not found or could not be imported. Skipping.")
+            with open(sensitive_exposure_file, "w") as f: f.write("# Sensitive data discovery module not available.\n")
+        except Exception as e:
+            print(f"[ERROR] Error during sensitive data discovery: {e}")
+            with open(sensitive_exposure_file, "w") as f: f.write(f"# Error during sensitive data discovery: {e}\n")
+
+
     # Create other placeholder output files
     with open(takeover_file, "w") as f: pass
     with open(wildcard_file, "w") as f: pass
@@ -293,13 +326,14 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
 
     final_results = {
         "target_domain": target_domain,
-        "status": "completed_full_recon_flow",
+        "status": "completed_full_recon_flow", # This status might need to be more dynamic based on stages completed
         "all_subdomains_file": all_subdomains_file,
         "subdomains_alive_file": subdomains_alive_file,
         "subdomains_dead_file": subdomains_dead_file,
         "way_kat_file": way_kat_file,
-        "urls_alive_file": urls_alive_file, # Note: previous plan called this alive_domain.txt
-        "urls_dead_file": urls_dead_file,   # Note: previous plan called this dead_domain.txt
+        "urls_alive_file": urls_alive_file,
+        "urls_dead_file": urls_dead_file,
+        "sensitive_exposure_file": sensitive_exposure_file, # Add this to results
         "takeover_vulnerable_file": takeover_file,
         "wildcard_domains_file": wildcard_file,
         "metadata_file": metadata_file,
@@ -313,9 +347,17 @@ if __name__ == '__main__':
     # Ensure all tools (Subfinder, Sublist3r, Amass, Assetfinder, Waybackurls, Katana) are in PATH.
     # And httpx, sublist3r are pip installed.
 
+    # Import for direct testing if sensitive data discovery is also tested here
+    try:
+        from ..sensitive_data_discovery.main import find_sensitive_data
+        SENSITIVE_DISCOVERY_IMPORTED = True
+    except ImportError:
+        print("[WARN] Could not import sensitive_data_discovery module for direct combined testing.")
+        SENSITIVE_DISCOVERY_IMPORTED = False
+
     # test_domain = "example.com" # Limited results, good for quick test
-    test_domain = "projectdiscovery.io" # More substantial results
-    # test_domain = "testphp.vulnweb.com" # Another good test case
+    # test_domain = "projectdiscovery.io" # More substantial results
+    test_domain = "testphp.vulnweb.com" # Another good test case, known for some exposures
 
     output_dir = os.path.abspath("./temp_scan_results_comprehensive")
 
@@ -325,7 +367,35 @@ if __name__ == '__main__':
     # Execute the main workflow function (renamed from enumerate_subdomains)
     workflow_output = run_recon_workflow(test_domain, output_path=output_dir)
 
-    print("\n--- Workflow Execution Summary ---")
+    # --- Example of running sensitive data discovery after recon ---
+    # This part would typically be orchestrated by a higher-level component or the API handler,
+    # but for direct script testing, we can call it here if the recon was successful.
+    if SENSITIVE_DISCOVERY_IMPORTED and workflow_output.get("status") not in [
+            "completed_no_subdomains_found_by_any_tool",
+            "completed_no_live_subdomains",
+            "completed_no_urls_discovered"] and workflow_output.get("urls_alive_file"):
+
+        print(f"\n--- Additionally Running Sensitive Data Discovery ---")
+        target_specific_output_dir = os.path.join(output_dir, test_domain)
+        urls_to_scan_for_sensitive_data = workflow_output["urls_alive_file"]
+
+        if os.path.exists(urls_to_scan_for_sensitive_data) and os.path.getsize(urls_to_scan_for_sensitive_data) > 0:
+            sensitive_results = find_sensitive_data(
+                target_urls_file=urls_to_scan_for_sensitive_data,
+                output_dir=target_specific_output_dir # Save in the same target-specific directory
+            )
+            print(f"Sensitive data discovery results: {sensitive_results}")
+            # Add sensitive discovery results to the main workflow output for the summary
+            if sensitive_results.get("sensitive_exposure_file"):
+                workflow_output["sensitive_exposure_file"] = sensitive_results["sensitive_exposure_file"]
+        else:
+            print("[INFO] Skipping sensitive data discovery as no live URLs file was found or it's empty.")
+            workflow_output["sensitive_exposure_file"] = os.path.join(target_specific_output_dir, "sensitive_exposure.txt") # expected path even if empty
+            if not os.path.exists(workflow_output["sensitive_exposure_file"]):
+                 with open(workflow_output["sensitive_exposure_file"], "w") as f: f.write("# No live URLs to scan for sensitive data.\n")
+
+
+    print("\n--- Workflow Execution Summary (including sensitive discovery if run) ---")
     for key, val in workflow_output.items():
         print(f"  {key}: {val}")
 
