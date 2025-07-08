@@ -341,7 +341,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             subdomains_dead_file, way_kat_file, urls_alive_file, urls_dead_file,
             takeover_file, wildcard_file, sensitive_exposure_file,
             subdomain_takeover_file, interesting_params_file,
-            os.path.join(domain_output_path, "xss_vulnerabilities.json") # Ensure XSS file is also handled
+            os.path.join(domain_output_path, "xss_vulnerabilities.json"),
+            os.path.join(domain_output_path, "sqli_vulnerabilities.json") # SQLi file
         ]
         for f_path in early_exit_files:
             if not os.path.exists(f_path): open(f_path, 'w').close()
@@ -351,6 +352,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
                  with open(f_path, 'w') as fip: fip.write("# Parameter extraction skipped: No subdomains found.\n")
             if f_path == os.path.join(domain_output_path, "xss_vulnerabilities.json"):
                  with open(f_path, 'w') as fxs: json.dump({"notes": "XSS hunting skipped: No subdomains found.", "vulnerabilities": []}, fxs, indent=4)
+            if f_path == os.path.join(domain_output_path, "sqli_vulnerabilities.json"):
+                 with open(f_path, 'w') as fsq: json.dump({"notes": "SQLi scanning skipped: No subdomains found.", "vulnerabilities": []}, fsq, indent=4)
 
 
         with open(metadata_file, "w") as f: f.write("{}")
@@ -364,7 +367,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "sensitive_exposure_file": sensitive_exposure_file,
             "takeover_vulnerable_file": subdomain_takeover_file,
             "interesting_params_file": interesting_params_file,
-            "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"), # Add to results
+            "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"),
+            "sqli_results_file": os.path.join(domain_output_path, "sqli_vulnerabilities.json"), # Add to results
             "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -435,7 +439,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         early_exit_files_no_live_subs = [
             way_kat_file, urls_alive_file, urls_dead_file,
             sensitive_exposure_file, interesting_params_file,
-            os.path.join(domain_output_path, "xss_vulnerabilities.json") # XSS file
+            os.path.join(domain_output_path, "xss_vulnerabilities.json"),
+            os.path.join(domain_output_path, "sqli_vulnerabilities.json") # SQLi file
         ]
         for f_path in early_exit_files_no_live_subs:
             if not os.path.exists(f_path): open(f_path, 'w').close()
@@ -443,6 +448,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
                  with open(f_path, 'w') as fto: fto.write("# Parameter extraction skipped: No live subdomains.\n")
             if f_path == os.path.join(domain_output_path, "xss_vulnerabilities.json"):
                  with open(f_path, 'w') as fxs: json.dump({"notes": "XSS hunting skipped: No live subdomains.", "vulnerabilities": []}, fxs, indent=4)
+            if f_path == os.path.join(domain_output_path, "sqli_vulnerabilities.json"):
+                 with open(f_path, 'w') as fsq: json.dump({"notes": "SQLi scanning skipped: No live subdomains.", "vulnerabilities": []}, fsq, indent=4)
 
         # Ensure other placeholder files also exist if not created by earlier logic
         if not os.path.exists(takeover_file): open(takeover_file, 'w').close()
@@ -462,7 +469,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "urls_alive_file": urls_alive_file,
             "urls_dead_file": urls_dead_file,
             "sensitive_exposure_file": sensitive_exposure_file,
-            "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"), # Add to results
+            "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"),
+            "sqli_results_file": os.path.join(domain_output_path, "sqli_vulnerabilities.json"), # Add to results
             "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -524,14 +532,18 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         # Create empty files for URL filtering stage and ensure param file is also handled
         early_exit_files_no_urls = [
             urls_alive_file, urls_dead_file, sensitive_exposure_file,
-            interesting_params_file, # Already handled by its own logic if Way_kat is empty
-            os.path.join(domain_output_path, "xss_vulnerabilities.json") # XSS file
+            interesting_params_file,
+            os.path.join(domain_output_path, "xss_vulnerabilities.json"),
+            os.path.join(domain_output_path, "sqli_vulnerabilities.json") # SQLi file
         ]
         for f_path in early_exit_files_no_urls:
             if not os.path.exists(f_path): open(f_path, 'w').close()
-            # No specific message for interesting_params here as its function handles it
+            if f_path == interesting_params_file: # Parameter extraction function handles its own placeholder if Way_kat is empty
+                 pass
             if f_path == os.path.join(domain_output_path, "xss_vulnerabilities.json"):
                  with open(f_path, 'w') as fxs: json.dump({"notes": "XSS hunting skipped: No URLs discovered.", "vulnerabilities": []}, fxs, indent=4)
+            if f_path == os.path.join(domain_output_path, "sqli_vulnerabilities.json"):
+                 with open(f_path, 'w') as fsq: json.dump({"notes": "SQLi scanning skipped: No URLs discovered.", "vulnerabilities": []}, fsq, indent=4)
 
         # Ensure other placeholders also exist
         if not os.path.exists(takeover_file): open(takeover_file, 'w').close()
@@ -550,7 +562,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "urls_alive_file": urls_alive_file,
             "urls_dead_file": urls_dead_file,
             "sensitive_exposure_file": sensitive_exposure_file,
-            "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"), # Add to results
+            "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"),
+            "sqli_results_file": os.path.join(domain_output_path, "sqli_vulnerabilities.json"), # Add to results
             "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -641,6 +654,29 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         print("[INFO] No live URLs found. Skipping XSS Hunter (Placeholder).")
         with open(xss_results_file, "w") as f: f.write('{"notes": "XSS hunting skipped: No live URLs.", "vulnerabilities": []}')
 
+    # --- Phase Y: SQLi Scanner (Placeholder Call) ---
+    sqli_results_file = os.path.join(domain_output_path, "sqli_vulnerabilities.json") # Initialize path
+    if os.path.exists(urls_alive_file) and os.path.getsize(urls_alive_file) > 0:
+        print("\n--- Running SQLi Scanner (Placeholder) ---")
+        try:
+            from ..sqli_scanner.main import scan_for_sqli # Relative import
+            sqli_scan_results = scan_for_sqli(
+                target_urls_file=urls_alive_file,
+                params_file=interesting_params_file, # Pass params file
+                output_dir=domain_output_path
+            )
+            sqli_results_file = sqli_scan_results.get("sqli_results_file", sqli_results_file)
+            print(f"SQLi Scanner (Placeholder) status: {sqli_scan_results.get('status')}")
+        except ImportError:
+            print("[WARN] SQLi Scanner module not found or could not be imported. Skipping SQLi scan.")
+            with open(sqli_results_file, "w") as f: f.write('{"notes": "SQLi Scanner module not available.", "vulnerabilities": []}')
+        except Exception as e:
+            print(f"[ERROR] Error during SQLi Scanner (Placeholder) execution: {e}")
+            with open(sqli_results_file, "w") as f: f.write(f'{{"notes": "Error during SQLi scan: {e}", "vulnerabilities": []}}')
+    else:
+        print("[INFO] No live URLs found. Skipping SQLi Scanner (Placeholder).")
+        with open(sqli_results_file, "w") as f: f.write('{"notes": "SQLi scanning skipped: No live URLs.", "vulnerabilities": []}')
+
 
     final_results = {
         "target_domain": target_domain,
@@ -655,7 +691,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         "urls_alive_file": urls_alive_file,
         "urls_dead_file": urls_dead_file,
         "sensitive_exposure_file": sensitive_exposure_file,
-        "xss_results_file": xss_results_file, # Added XSS results file
+        "xss_results_file": xss_results_file,
+        "sqli_results_file": sqli_results_file, # Added SQLi results file
         "wildcard_domains_file": wildcard_file,
         "metadata_file": metadata_file,
     }

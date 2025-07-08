@@ -20,10 +20,11 @@ Initial project structure setup. The tool currently features a comprehensive rec
     - Extraction of unique URL query parameters.
     - URL Filtering (httpx status codes)
     - Basic Sensitive Data Discovery (common files/paths like `.env`, `.git/config`, backups)
-    - Placeholder for XSS Hunting (integrated into workflow, no actual tools run yet).
+    - Placeholder for XSS Hunting.
+    - Placeholder for SQL Injection (SQLi) Scanning.
 - **API (`ch_api/`):**
     - Flask-based server.
-    - Endpoints to start reconnaissance scans (now including placeholder XSS step), check status, and retrieve results.
+    - Endpoints to start reconnaissance scans (now including placeholder XSS and SQLi steps), check status, and retrieve results.
     - Asynchronous scan execution using `ThreadPoolExecutor`.
     - Persistent storage of scan jobs and results metadata using SQLite (`instance/scan_jobs.db`).
 - **Web Interface (Placeholder):**
