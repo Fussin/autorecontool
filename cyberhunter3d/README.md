@@ -21,6 +21,7 @@ Initial project structure setup. The tool currently features a comprehensive rec
     - Flask-based server.
     - Endpoints to start reconnaissance scans (including sensitive data discovery), check status, and retrieve results.
     - Asynchronous scan execution using `ThreadPoolExecutor`.
+    - Persistent storage of scan jobs and results metadata using SQLite (`instance/scan_jobs.db`).
 
 ## Modules (Planned & In Progress)
 - Core Engine (Foundation)

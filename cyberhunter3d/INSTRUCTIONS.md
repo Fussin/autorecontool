@@ -170,9 +170,9 @@ You can use `curl` or tools like Postman to interact with the API.
 ## 4. Current Limitations & Notes
 
 *   **Go Tools in Sandbox:** The development environment where these instructions are generated might not have the Go-based tools (Subfinder, Amass, etc.) installed. The script and API are designed to handle this by logging errors and continuing. For full functionality on your local machine, ensure these tools are installed and in your PATH.
-*   **API Storage:** The API currently stores scan job status and result information in-memory. This means scan data will be lost if the API server restarts. A persistent database (e.g., Redis, PostgreSQL) would be needed for a production environment.
+*   **API Storage:** Scan job status and result information are now stored in a local SQLite database file (`instance/scan_jobs.db` relative to the project root `cyberhunter3d/`). This makes scan information persistent across API server restarts. The `instance/` folder is created automatically by Flask if it doesn't exist.
 *   **Asynchronous Task Handling:** The API uses Python's `concurrent.futures.ThreadPoolExecutor` for asynchronous scan execution. For a more robust and scalable production setup, a dedicated task queue system like Celery (with Redis or RabbitMQ as a broker) is recommended.
-*   **Output File Paths:** The API currently returns absolute paths to output files as seen by the server. For a distributed setup or different client access, these paths might need to be relative or served via dedicated download endpoints.
+*   **Output File Paths:** The API currently returns absolute paths to output files (e.g., in `instance/scan_outputs/target_domain/`). For a distributed setup or different client access, these paths might need to be relative or served via dedicated download endpoints. The scan output files are now also stored within the `instance/` directory.
 
 ## 5. Further Development
 

@@ -10,15 +10,38 @@ import sys # For path manipulation
 
 def create_app():
     """Creates and configures the Flask application."""
-    app = Flask(__name__)
+    # Explicitly set instance_path to be 'instance' directory at project root (one level up from ch_api)
+    # app.root_path is the directory where main_api.py is (i.e., ch_api)
+    instance_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'instance'))
+    app = Flask(__name__, instance_path=instance_folder_path)
 
     # Configuration (can be loaded from a config file or environment variables)
     app.config["DEBUG"] = True # Set to False in production
     app.config["SECRET_KEY"] = os.urandom(24) # Important for session management, etc.
 
+    # Define instance path if it doesn't exist - good for DB files, logs etc.
+    if not os.path.exists(app.instance_path):
+        try:
+            os.makedirs(app.instance_path)
+            print(f"Instance path explicitly created at: {app.instance_path}")
+        except OSError as e:
+            print(f"Could not create instance path at: {app.instance_path}. Error: {e}")
+            # Fallback or raise error, for now, we'll let it proceed and potentially fail at DB creation.
+
+    # Database configuration
+    app.config["DATABASE"] = os.path.join(app.instance_path, "scan_jobs.db")
+    print(f"Database will be located at: {app.config['DATABASE']}")
+
+    # Initialize Database
+    from . import db_handler # Import db_handler
+    db_handler.init_db(app.config["DATABASE"]) # Initialize DB with the app-configured path
+
+
     # Base output directory for scans - ensure it's an absolute path or resolved correctly
     # This assumes the API is run from the root of the 'cyberhunter3d' project or similar context
-    app.config["SCAN_OUTPUT_BASE_DIR"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scan_results_api"))
+    # Let's place scan results inside the instance path as well for better organization
+    app.config["SCAN_OUTPUT_BASE_DIR"] = os.path.join(app.instance_path, "scan_outputs")
+    # os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scan_results_api"))
     os.makedirs(app.config["SCAN_OUTPUT_BASE_DIR"], exist_ok=True)
 
     print(f"Scan output base directory: {app.config['SCAN_OUTPUT_BASE_DIR']}")

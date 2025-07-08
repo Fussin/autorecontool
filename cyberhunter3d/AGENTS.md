@@ -50,8 +50,16 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
 -   **API Design & Endpoints:**
     -   The API is built using Flask.
     -   Asynchronous tasks (like running the recon workflow) are currently handled using `concurrent.futures.ThreadPoolExecutor`. For production, consider migrating to a more robust task queue like Celery with Redis/RabbitMQ.
-    -   Scan job statuses and result paths are stored in-memory. This will need to be replaced by a persistent store (e.g., database) for a production system.
-    -   The main API application is in `ch_api/main_api.py` and routes are in `ch_api/routes/scan_routes.py`.
+    -   Scan job statuses and result paths are now stored persistently in an **SQLite database** (`instance/scan_jobs.db`).
+        -   **DB Schema (`scan_jobs` table in `ch_api/db_handler.py`):**
+            -   `scan_id` (TEXT PRIMARY KEY)
+            -   `target_domain` (TEXT NOT NULL)
+            -   `status` (TEXT NOT NULL: queued, running, completed, failed)
+            -   `created_at` (TEXT ISO 8601)
+            -   `updated_at` (TEXT ISO 8601)
+            -   `results_json` (TEXT: JSON string of result file paths)
+            -   `error_message` (TEXT)
+    -   The main API application is in `ch_api/main_api.py` (initializes DB). Routes are in `ch_api/routes/scan_routes.py` (interact with DB).
     -   **Endpoints (base: `/api/v1/scan` - prefix applied in `main_api.py` where `scan_bp` is registered):**
         -   `POST /recon`: Initiates a new reconnaissance scan.
             -   Request Body: `{"target": "example.com"}`
