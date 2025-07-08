@@ -33,6 +33,7 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   `alive_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 200-399 status codes.
     -   `dead_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 400-599 status codes or failed requests (includes status code in output).
     -   `sensitive_exposure.txt`: URLs of potential sensitive files/paths discovered (e.g., `.env`, `.git/config`, `backup.sql`).
+    -   `xss_vulnerabilities.json`: Placeholder output for XSS hunter module (currently contains no actual vulnerabilities).
     -   Placeholders: `wildcard_domains.txt`, `subdomain_technologies.json` are also created.
 -   **URL Discovery Enhancement:**
     -   Integrated `gau` and `hakrawler` into the URL discovery phase.
@@ -47,6 +48,11 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   Checks against a list of common sensitive patterns (file extensions, paths).
     -   Uses `httpx` to verify if these potential sensitive URLs are accessible (200 OK).
     -   Outputs findings to `sensitive_exposure.txt`.
+-   **XSS Hunter Module (Placeholder - `ch_modules/xss_hunter/main.py`):**
+    -   Currently a placeholder, integrated into the main recon workflow.
+    -   Takes `urls_alive_file` as input.
+    -   Intended tools for future integration: Gxss, kxss, Dalfox, XSStrike.
+    -   Outputs a placeholder `xss_vulnerabilities.json` file.
 -   **Tool Dependencies for Reconnaissance Workflow:**
     -   **Python Libraries (in `requirements.txt`):**
         -   `httpx`: For HTTP/S liveness checks and sensitive data discovery URL checks.

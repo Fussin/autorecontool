@@ -340,7 +340,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             all_subdomains_file, dns_resolutions_file, subdomains_alive_file,
             subdomains_dead_file, way_kat_file, urls_alive_file, urls_dead_file,
             takeover_file, wildcard_file, sensitive_exposure_file,
-            subdomain_takeover_file, interesting_params_file # Add new file here
+            subdomain_takeover_file, interesting_params_file,
+            os.path.join(domain_output_path, "xss_vulnerabilities.json") # Ensure XSS file is also handled
         ]
         for f_path in early_exit_files:
             if not os.path.exists(f_path): open(f_path, 'w').close()
@@ -348,6 +349,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
                  with open(f_path, 'w') as fto: fto.write("# Subdomain takeover check skipped: No subdomains found.\n")
             if f_path == interesting_params_file:
                  with open(f_path, 'w') as fip: fip.write("# Parameter extraction skipped: No subdomains found.\n")
+            if f_path == os.path.join(domain_output_path, "xss_vulnerabilities.json"):
+                 with open(f_path, 'w') as fxs: json.dump({"notes": "XSS hunting skipped: No subdomains found.", "vulnerabilities": []}, fxs, indent=4)
 
 
         with open(metadata_file, "w") as f: f.write("{}")
@@ -360,7 +363,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
             "sensitive_exposure_file": sensitive_exposure_file,
             "takeover_vulnerable_file": subdomain_takeover_file,
-            "interesting_params_file": interesting_params_file, # Add to results
+            "interesting_params_file": interesting_params_file,
+            "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"), # Add to results
             "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -428,10 +432,18 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
     if not live_subs_list:
         print("[WARNING] No live subdomains found. URL discovery and sensitive data discovery will be skipped.")
         # Create empty files for these subsequent stages
-        for f_path in [way_kat_file, urls_alive_file, urls_dead_file, sensitive_exposure_file, interesting_params_file]:
+        early_exit_files_no_live_subs = [
+            way_kat_file, urls_alive_file, urls_dead_file,
+            sensitive_exposure_file, interesting_params_file,
+            os.path.join(domain_output_path, "xss_vulnerabilities.json") # XSS file
+        ]
+        for f_path in early_exit_files_no_live_subs:
             if not os.path.exists(f_path): open(f_path, 'w').close()
-            if f_path == interesting_params_file: # Specific message for params if skipped
+            if f_path == interesting_params_file:
                  with open(f_path, 'w') as fto: fto.write("# Parameter extraction skipped: No live subdomains.\n")
+            if f_path == os.path.join(domain_output_path, "xss_vulnerabilities.json"):
+                 with open(f_path, 'w') as fxs: json.dump({"notes": "XSS hunting skipped: No live subdomains.", "vulnerabilities": []}, fxs, indent=4)
+
         # Ensure other placeholder files also exist if not created by earlier logic
         if not os.path.exists(takeover_file): open(takeover_file, 'w').close()
         if not os.path.exists(wildcard_file): open(wildcard_file, 'w').close()
@@ -445,11 +457,12 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "subdomains_alive_file": subdomains_alive_file,
             "subdomains_dead_file": subdomains_dead_file,
             "takeover_vulnerable_file": subdomain_takeover_file,
-            "way_kat_file": way_kat_file, # Will be empty
-            "interesting_params_file": interesting_params_file, # Add to results, will be empty
-            "urls_alive_file": urls_alive_file, # Will be empty
-            "urls_dead_file": urls_dead_file,   # Will be empty
-            "sensitive_exposure_file": sensitive_exposure_file, # Will be empty
+            "way_kat_file": way_kat_file,
+            "interesting_params_file": interesting_params_file,
+            "urls_alive_file": urls_alive_file,
+            "urls_dead_file": urls_dead_file,
+            "sensitive_exposure_file": sensitive_exposure_file,
+            "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"), # Add to results
             "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -509,10 +522,17 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
     if not sorted_urls:
         print("[WARNING] No URLs found by Waybackurls or Katana.")
         # Create empty files for URL filtering stage and ensure param file is also handled
-        for f_path in [urls_alive_file, urls_dead_file, sensitive_exposure_file, interesting_params_file]:
+        early_exit_files_no_urls = [
+            urls_alive_file, urls_dead_file, sensitive_exposure_file,
+            interesting_params_file, # Already handled by its own logic if Way_kat is empty
+            os.path.join(domain_output_path, "xss_vulnerabilities.json") # XSS file
+        ]
+        for f_path in early_exit_files_no_urls:
             if not os.path.exists(f_path): open(f_path, 'w').close()
-            if f_path == interesting_params_file: # Specific message
-                 with open(f_path, 'w') as fto: fto.write("# Parameter extraction skipped: No URLs discovered.\n")
+            # No specific message for interesting_params here as its function handles it
+            if f_path == os.path.join(domain_output_path, "xss_vulnerabilities.json"):
+                 with open(f_path, 'w') as fxs: json.dump({"notes": "XSS hunting skipped: No URLs discovered.", "vulnerabilities": []}, fxs, indent=4)
+
         # Ensure other placeholders also exist
         if not os.path.exists(takeover_file): open(takeover_file, 'w').close()
         if not os.path.exists(wildcard_file): open(wildcard_file, 'w').close()
@@ -525,11 +545,12 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "subdomains_alive_file": subdomains_alive_file,
             "subdomains_dead_file": subdomains_dead_file,
             "takeover_vulnerable_file": subdomain_takeover_file,
-            "way_kat_file": way_kat_file, # Will be empty
-            "interesting_params_file": interesting_params_file, # Add to results, will be empty
-            "urls_alive_file": urls_alive_file, # Will be empty
-            "urls_dead_file": urls_dead_file,   # Will be empty
-            "sensitive_exposure_file": sensitive_exposure_file, # Will be empty
+            "way_kat_file": way_kat_file,
+            "interesting_params_file": interesting_params_file,
+            "urls_alive_file": urls_alive_file,
+            "urls_dead_file": urls_dead_file,
+            "sensitive_exposure_file": sensitive_exposure_file,
+            "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"), # Add to results
             "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -594,23 +615,47 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
 
 
     # Create other placeholder output files
-    with open(takeover_file, "w") as f: pass
+    with open(takeover_file, "w") as f: pass # This is a generic placeholder, actual is subdomain_takeover_file
     with open(wildcard_file, "w") as f: pass
     with open(metadata_file, "w") as f: f.write("{}")
 
+    # --- Phase X: XSS Hunting (Placeholder Call) ---
+    xss_results_file = os.path.join(domain_output_path, "xss_vulnerabilities.json") # Initialize path
+    if os.path.exists(urls_alive_file) and os.path.getsize(urls_alive_file) > 0:
+        print("\n--- Running XSS Hunter (Placeholder) ---")
+        try:
+            from ..xss_hunter.main import hunt_xss # Relative import
+            xss_scan_results = hunt_xss(
+                target_urls_file=urls_alive_file,
+                output_dir=domain_output_path
+            )
+            xss_results_file = xss_scan_results.get("xss_results_file", xss_results_file) # Update if path changes
+            print(f"XSS Hunter (Placeholder) status: {xss_scan_results.get('status')}")
+        except ImportError:
+            print("[WARN] XSS Hunter module not found or could not be imported. Skipping XSS scan.")
+            with open(xss_results_file, "w") as f: f.write('{"notes": "XSS Hunter module not available.", "vulnerabilities": []}')
+        except Exception as e:
+            print(f"[ERROR] Error during XSS Hunter (Placeholder) execution: {e}")
+            with open(xss_results_file, "w") as f: f.write(f'{{"notes": "Error during XSS scan: {e}", "vulnerabilities": []}}')
+    else:
+        print("[INFO] No live URLs found. Skipping XSS Hunter (Placeholder).")
+        with open(xss_results_file, "w") as f: f.write('{"notes": "XSS hunting skipped: No live URLs.", "vulnerabilities": []}')
+
+
     final_results = {
         "target_domain": target_domain,
-        "status": "completed_full_recon_flow", # This status might need to be more dynamic based on stages completed
+        "status": "completed_full_recon_flow", # This status might need to be more dynamic
         "all_subdomains_file": all_subdomains_file,
         "dns_resolutions_file": dns_resolutions_file,
         "subdomains_alive_file": subdomains_alive_file,
         "subdomains_dead_file": subdomains_dead_file,
         "takeover_vulnerable_file": subdomain_takeover_file,
         "way_kat_file": way_kat_file,
-        "interesting_params_file": interesting_params_file, # Add to results
+        "interesting_params_file": interesting_params_file,
         "urls_alive_file": urls_alive_file,
         "urls_dead_file": urls_dead_file,
         "sensitive_exposure_file": sensitive_exposure_file,
+        "xss_results_file": xss_results_file, # Added XSS results file
         "wildcard_domains_file": wildcard_file,
         "metadata_file": metadata_file,
     }

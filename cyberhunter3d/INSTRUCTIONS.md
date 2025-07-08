@@ -110,6 +110,7 @@ The script will:
     *   `alive_domain.txt`: Live URLs (200s/30xs).
     *   `dead_domain.txt`: Dead/Error URLs (40xs/50xs).
     *   `sensitive_exposure.txt`: URLs of potential sensitive files/paths found.
+    *   `xss_vulnerabilities.json`: Placeholder XSS scan results (currently mock).
 
 ## 3. Running the API Server
 
