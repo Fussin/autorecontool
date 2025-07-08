@@ -57,8 +57,14 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
 -   **SQLi Scanner Module (Placeholder - `ch_modules/sqli_scanner/main.py`):**
     -   Currently a placeholder, integrated into the main recon workflow.
     -   Takes `urls_alive_file` and `interesting_params.txt` as input.
-    -   Intended tools for future integration: SQLMap, Ghauri.
-    -   Outputs a placeholder `sqli_vulnerabilities.json` file.
+    -   **Planned Techniques & Tooling:**
+        -   Time-based blind SQLi
+        -   Error-based detection
+        -   Boolean-based inference
+        -   WAF bypass payload injection
+        -   Integration with SQLMap & Ghauri using custom flags relevant to the above techniques.
+        -   DB fingerprinting + banner grabbing.
+    -   Outputs a placeholder `sqli_vulnerabilities.json` file. The "notes" section of this JSON now reflects that these advanced techniques were conceptually considered during the placeholder run. The `vulnerabilities` array would eventually be structured to detail findings related to these specific techniques (e.g., type of SQLi, vulnerable parameter, DBMS, WAF bypass used, PoC).
 -   **Tool Dependencies for Reconnaissance Workflow:**
     -   **Python Libraries (in `requirements.txt`):**
         -   `httpx`: For HTTP/S liveness checks and sensitive data discovery URL checks.

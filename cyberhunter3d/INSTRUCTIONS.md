@@ -111,7 +111,7 @@ The script will:
     *   `dead_domain.txt`: Dead/Error URLs (40xs/50xs).
     *   `sensitive_exposure.txt`: URLs of potential sensitive files/paths found.
     *   `xss_vulnerabilities.json`: Placeholder XSS scan results (currently mock).
-    *   `sqli_vulnerabilities.json`: Placeholder SQLi scan results (currently mock).
+    *   `sqli_vulnerabilities.json`: Placeholder SQLi scan results (currently mock, notes reflect conceptually considered advanced techniques like time-based, error-based, etc.).
 
 ## 3. Running the API Server
 
