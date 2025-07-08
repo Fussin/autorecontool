@@ -6,19 +6,31 @@ This project aims to create the most advanced bug bounty automation platform eve
 featuring a revolutionary 3D holographic interface.
 
 ## Current Status
-Initial project structure setup.
+Initial project structure setup. The tool currently features a comprehensive reconnaissance script and a basic asynchronous API to manage scans.
 
-## Modules (Planned)
-- Core Engine
-- Subdomain Enumeration
-- URL Collection & Analysis
+**For detailed setup and usage instructions, please see [INSTRUCTIONS.md](INSTRUCTIONS.md).**
+
+## Current Capabilities
+- **Reconnaissance Script (`ch_modules/subdomain_enumeration/main.py`):**
+    - Subdomain Enumeration (Subfinder, Sublist3r, Amass, Assetfinder)
+    - Subdomain Liveness Checks (httpx)
+    - URL Discovery (Waybackurls, Katana)
+    - URL Filtering (httpx status codes)
+- **API (`ch_api/`):**
+    - Flask-based server.
+    - Endpoints to start reconnaissance scans, check status, and retrieve results.
+    - Asynchronous scan execution using `ThreadPoolExecutor`.
+
+## Modules (Planned & In Progress)
+- Core Engine (Foundation)
+- Reconnaissance Module (Subdomain Enumeration, URL Collection - *Partially Implemented*)
 - Sensitive Data Discovery
 - XSS Hunting
 - SQL Injection Testing
-- And many more...
+- And many more as per the project brief...
 
 ## Getting Started
-(To be added)
+Please refer to [INSTRUCTIONS.md](INSTRUCTIONS.md) for detailed setup and execution steps.
 
 ## Contributing
-(To be added)
+(To be added - general open source contribution guidelines would apply)
