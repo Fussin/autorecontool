@@ -7,6 +7,7 @@ import asyncio
 import tempfile
 import re
 import json # Added for DNS resolution output
+from urllib.parse import urlparse, parse_qs # Added for URL cleaning and parameter extraction
 
 # --- Subdomain Enumeration Tool Wrappers ---
 
@@ -96,6 +97,63 @@ def run_waybackurls(target: str) -> set[str]: # Target can be a domain or subdom
 def run_katana(target: str) -> set[str]: # Target can be a domain or subdomain
     # -silent -jc for JS parsing, -nc for no colors
     return _run_tool(["katana", "-u", target, "-silent", "-jc", "-nc", "-aff", "-kf", "all"], "Katana", target)
+
+def run_gau(target_domain_or_subdomain: str) -> set[str]:
+    """Runs GAU to discover URLs."""
+    # GAU typically outputs to stdout. Adding --subs if we want to discover for subdomains of the input too.
+    # However, we are running this per live subdomain, so --subs might be redundant or overly broad here.
+    # Let's use a simple call for now. Consider adding --providers wayback,otx,commoncrawl,urlscan if needed.
+    # Using --threads 5 as a sensible default.
+    return _run_tool(["gau", "--threads", "5", target_domain_or_subdomain], "GAU", target_domain_or_subdomain)
+
+def run_hakrawler(target_domain_or_subdomain: str) -> set[str]:
+    """Runs Hakrawler to discover URLs."""
+    # hakrawler -url <target> -depth <depth> -plain
+    # Using depth 2 as a default. -plain for easy output.
+    return _run_tool(["hakrawler", "-url", target_domain_or_subdomain, "-depth", "2", "-plain"], "Hakrawler", target_domain_or_subdomain)
+
+# --- Parameter Extraction ---
+def extract_parameters_from_urls(urls_file_path: str, output_file_params: str):
+    """
+    Reads URLs from a file, extracts unique query parameter names, and saves them.
+    """
+    print(f"[INFO] Starting parameter extraction from: {urls_file_path}")
+    if not os.path.exists(urls_file_path) or os.path.getsize(urls_file_path) == 0:
+        print(f"[INFO] URL file '{urls_file_path}' is empty or not found. Skipping parameter extraction.")
+        with open(output_file_params, "w") as f: # Create empty placeholder
+            f.write("# URL file for parameter extraction was empty or not found.\n")
+        return
+
+    unique_params = set()
+    # from urllib.parse import parse_qs # Moved to top of file
+
+    try:
+        with open(urls_file_path, "r") as f_urls:
+            for line_num, line in enumerate(f_urls):
+                url = line.strip()
+                if not url:
+                    continue
+                try:
+                    parsed_url = urlparse(url)
+                    query_params = parse_qs(parsed_url.query)
+                    for param_name in query_params.keys():
+                        unique_params.add(param_name)
+                except Exception as e:
+                    print(f"[WARN] Could not parse URL or extract params from '{url}' (line {line_num+1}): {e}")
+
+        with open(output_file_params, "w") as f_out:
+            if unique_params:
+                for param in sorted(list(unique_params)):
+                    f_out.write(param + "\n")
+                print(f"[INFO] Extracted {len(unique_params)} unique parameters to: {output_file_params}")
+            else:
+                f_out.write("# No query parameters found in the provided URLs.\n")
+                print(f"[INFO] No query parameters found in URLs from {urls_file_path}.")
+    except Exception as e:
+        print(f"[ERROR] Failed during parameter extraction process: {e}")
+        with open(output_file_params, "w") as f_out: # Create placeholder with error
+            f_out.write(f"# Error during parameter extraction: {e}\n")
+
 
 # --- Subdomain Takeover Check ---
 def run_subzy_takeover_check(live_subdomains_file: str, output_file_subzy: str, target_domain_for_log: str) -> bool:
@@ -271,20 +329,28 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
     dns_resolutions_file = os.path.join(domain_output_path, "subdomain_dns_resolutions.json")
     # Initialize subdomain_takeover_file path early
     subdomain_takeover_file = os.path.join(domain_output_path, "subdomain_takeover_vulnerable.txt")
+    # Initialize interesting_params_file path early
+    interesting_params_file = os.path.join(domain_output_path, "interesting_params.txt")
 
 
     if not all_discovered_subdomains:
         print(f"[WARNING] No subdomains found by any tool for {target_domain}.")
         # Create all expected files as empty
-        for f_path in [all_subdomains_file, dns_resolutions_file, subdomains_alive_file,
-                       subdomains_dead_file, way_kat_file, urls_alive_file, urls_dead_file,
-                       takeover_file, wildcard_file, sensitive_exposure_file, subdomain_takeover_file]:
-            # Ensure all files, including subdomain_takeover_file, are created if exiting early
+        early_exit_files = [
+            all_subdomains_file, dns_resolutions_file, subdomains_alive_file,
+            subdomains_dead_file, way_kat_file, urls_alive_file, urls_dead_file,
+            takeover_file, wildcard_file, sensitive_exposure_file,
+            subdomain_takeover_file, interesting_params_file # Add new file here
+        ]
+        for f_path in early_exit_files:
             if not os.path.exists(f_path): open(f_path, 'w').close()
-            if f_path == subdomain_takeover_file: # Specific message for takeover if skipped
+            if f_path == subdomain_takeover_file:
                  with open(f_path, 'w') as fto: fto.write("# Subdomain takeover check skipped: No subdomains found.\n")
+            if f_path == interesting_params_file:
+                 with open(f_path, 'w') as fip: fip.write("# Parameter extraction skipped: No subdomains found.\n")
 
-        with open(metadata_file, "w") as f: f.write("{}") # metadata also empty
+
+        with open(metadata_file, "w") as f: f.write("{}")
         return {
             "target_domain": target_domain, "status": "completed_no_subdomains_found_by_any_tool",
             "all_subdomains_file": all_subdomains_file,
@@ -293,7 +359,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "subdomains_dead_file": subdomains_dead_file, "way_kat_file": way_kat_file,
             "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
             "sensitive_exposure_file": sensitive_exposure_file,
-            "takeover_vulnerable_file": subdomain_takeover_file, # ensure key is present
+            "takeover_vulnerable_file": subdomain_takeover_file,
+            "interesting_params_file": interesting_params_file, # Add to results
             "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -361,10 +428,12 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
     if not live_subs_list:
         print("[WARNING] No live subdomains found. URL discovery and sensitive data discovery will be skipped.")
         # Create empty files for these subsequent stages
-        for f_path in [way_kat_file, urls_alive_file, urls_dead_file, sensitive_exposure_file]:
+        for f_path in [way_kat_file, urls_alive_file, urls_dead_file, sensitive_exposure_file, interesting_params_file]:
             if not os.path.exists(f_path): open(f_path, 'w').close()
+            if f_path == interesting_params_file: # Specific message for params if skipped
+                 with open(f_path, 'w') as fto: fto.write("# Parameter extraction skipped: No live subdomains.\n")
         # Ensure other placeholder files also exist if not created by earlier logic
-        if not os.path.exists(takeover_file): open(takeover_file, 'w').close() # Generic takeover placeholder
+        if not os.path.exists(takeover_file): open(takeover_file, 'w').close()
         if not os.path.exists(wildcard_file): open(wildcard_file, 'w').close()
         if not os.path.exists(metadata_file):
             with open(metadata_file, "w") as f: f.write("{}")
@@ -375,11 +444,13 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "dns_resolutions_file": dns_resolutions_file,
             "subdomains_alive_file": subdomains_alive_file,
             "subdomains_dead_file": subdomains_dead_file,
-            "takeover_vulnerable_file": subdomain_takeover_file, # Actual Subzy output file
-            "way_kat_file": way_kat_file,
-            "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
-            "sensitive_exposure_file": sensitive_exposure_file,
-            "wildcard_domains_file": wildcard_file, # Placeholder for general wildcard info
+            "takeover_vulnerable_file": subdomain_takeover_file,
+            "way_kat_file": way_kat_file, # Will be empty
+            "interesting_params_file": interesting_params_file, # Add to results, will be empty
+            "urls_alive_file": urls_alive_file, # Will be empty
+            "urls_dead_file": urls_dead_file,   # Will be empty
+            "sensitive_exposure_file": sensitive_exposure_file, # Will be empty
+            "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
 
@@ -389,12 +460,47 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
     # Process only live subdomains for URL discovery
     # Can run these in parallel per subdomain if performance becomes an issue later
     for live_sub in live_subs_list:
+        print(f"[INFO] Discovering URLs for live subdomain: {live_sub}")
         all_discovered_urls.update(run_waybackurls(live_sub))
         all_discovered_urls.update(run_katana(live_sub))
-        # Small sleep to avoid overwhelming services if any tool hits APIs rapidly
-        # asyncio.run(asyncio.sleep(0.1)) # If this part were async
+        all_discovered_urls.update(run_gau(live_sub))
+        all_discovered_urls.update(run_hakrawler(live_sub))
+        # Small sleep to avoid overwhelming services if any tool hits APIs rapidly - not strictly needed for CLI tools
+        # asyncio.run(asyncio.sleep(0.05)) # If this part were async and hitting APIs
 
-    sorted_urls = sorted(list(all_discovered_urls))
+    # Clean URLs - ensure they have schemes, are valid, etc.
+    # This is a basic cleaning, more robust validation could be added.
+    cleaned_urls = set()
+    for url in all_discovered_urls:
+        if not url.startswith(('http://', 'https://')):
+            # Attempt to prefix with https first, then http as a fallback if needed,
+            # or just default to http if scheme is missing. For now, let's try https.
+            # This part can be smarter, e.g. by checking which scheme the live_sub responded on.
+            cleaned_urls.add(f"https://{url}")
+        else:
+            cleaned_urls.add(url)
+
+    # Filter out common non-useful file extensions before saving to Way_kat.txt
+    # This list can be expanded.
+    excluded_extensions = {
+        '.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.woff', '.woff2',
+        '.ttf', '.eot', '.ico', '.map', '.jsonld' # Added jsonld as it's often metadata
+    }
+    final_urls_for_waykat = set()
+    for url in cleaned_urls:
+        try:
+            parsed_url = urlparse(url)
+            path = parsed_url.path
+            if not any(path.lower().endswith(ext) for ext in excluded_extensions):
+                final_urls_for_waykat.add(url)
+            # else:
+                # print(f"[DEBUG] Excluding URL due to extension: {url}")
+        except Exception: # Catch parsing errors for malformed URLs from tools
+            # print(f"[DEBUG] Malformed URL from tool, skipping: {url}")
+            continue
+
+
+    sorted_urls = sorted(list(final_urls_for_waykat))
     with open(way_kat_file, "w") as f:
         for url in sorted_urls:
             f.write(url + "\n")
@@ -402,28 +508,42 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
 
     if not sorted_urls:
         print("[WARNING] No URLs found by Waybackurls or Katana.")
-        # Create empty files for URL filtering stage
-        for f_path in [urls_alive_file, urls_dead_file, sensitive_exposure_file]: open(f_path, 'w').close()
-        with open(takeover_file, "w") as f: pass
-        with open(wildcard_file, "w") as f: pass
-        with open(metadata_file, "w") as f: f.write("{}")
+        # Create empty files for URL filtering stage and ensure param file is also handled
+        for f_path in [urls_alive_file, urls_dead_file, sensitive_exposure_file, interesting_params_file]:
+            if not os.path.exists(f_path): open(f_path, 'w').close()
+            if f_path == interesting_params_file: # Specific message
+                 with open(f_path, 'w') as fto: fto.write("# Parameter extraction skipped: No URLs discovered.\n")
+        # Ensure other placeholders also exist
+        if not os.path.exists(takeover_file): open(takeover_file, 'w').close()
+        if not os.path.exists(wildcard_file): open(wildcard_file, 'w').close()
+        if not os.path.exists(metadata_file):
+            with open(metadata_file, "w") as f: f.write("{}")
         return {
             "target_domain": target_domain, "status": "completed_no_urls_discovered",
             "all_subdomains_file": all_subdomains_file,
             "dns_resolutions_file": dns_resolutions_file,
             "subdomains_alive_file": subdomains_alive_file,
             "subdomains_dead_file": subdomains_dead_file,
-            "takeover_vulnerable_file": subdomain_takeover_file, # Actual Subzy output file
-            "way_kat_file": way_kat_file,
-            "urls_alive_file": urls_alive_file, "urls_dead_file": urls_dead_file,
-            "sensitive_exposure_file": sensitive_exposure_file,
+            "takeover_vulnerable_file": subdomain_takeover_file,
+            "way_kat_file": way_kat_file, # Will be empty
+            "interesting_params_file": interesting_params_file, # Add to results, will be empty
+            "urls_alive_file": urls_alive_file, # Will be empty
+            "urls_dead_file": urls_dead_file,   # Will be empty
+            "sensitive_exposure_file": sensitive_exposure_file, # Will be empty
             "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
 
-    # --- Phase 3: URL Filtering ---
+    # --- Phase 3: URL Filtering & Parameter Extraction ---
+    # Parameter extraction should happen on Way_kat.txt *before* filtering for live URLs,
+    # as parameters from dead/redirecting URLs might still be interesting.
+    print("\n--- Extracting Parameters from Discovered URLs ---")
+    # interesting_params_file was initialized at the start of the function
+    extract_parameters_from_urls(way_kat_file, interesting_params_file)
+    # The extract_parameters_from_urls function handles creating the file.
+
     print("\n--- Filtering URLs (Checking Liveness & Status Codes) ---")
-    url_liveness_results = asyncio.run(get_liveness_async(all_discovered_urls, is_url_check=True))
+    url_liveness_results = asyncio.run(get_liveness_async(all_discovered_urls, is_url_check=True)) # This uses all_discovered_urls (from Way_kat.txt content)
 
     live_urls_list = [] # 200s, 30xs
     dead_urls_list = []   # 40xs, 50xs (and others that failed)
@@ -485,12 +605,13 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         "dns_resolutions_file": dns_resolutions_file,
         "subdomains_alive_file": subdomains_alive_file,
         "subdomains_dead_file": subdomains_dead_file,
-        "takeover_vulnerable_file": subdomain_takeover_file, # Actual Subzy output file
+        "takeover_vulnerable_file": subdomain_takeover_file,
         "way_kat_file": way_kat_file,
+        "interesting_params_file": interesting_params_file, # Add to results
         "urls_alive_file": urls_alive_file,
         "urls_dead_file": urls_dead_file,
         "sensitive_exposure_file": sensitive_exposure_file,
-        "wildcard_domains_file": wildcard_file, # This is still a generic placeholder
+        "wildcard_domains_file": wildcard_file,
         "metadata_file": metadata_file,
     }
     print(f"\n[SUCCESS] Comprehensive recon workflow completed for: {target_domain}")

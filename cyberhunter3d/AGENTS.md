@@ -28,11 +28,16 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   `subdomains_alive.txt`: Subdomains from `Subdomain.txt` that responded to HTTP/HTTPS checks on ports 80, 443, 8000, or 8080 (via httpx).
     -   `subdomains_dead.txt`: Subdomains from `Subdomain.txt` that did not respond on any of the probed ports.
     -   `subdomain_takeover_vulnerable.txt`: Output from `subzy` listing potential subdomain takeover vulnerabilities.
-    -   `Way_kat.txt`: Consolidated unique URLs discovered by Waybackurls and Katana run against live subdomains.
+    -   `Way_kat.txt`: Consolidated unique URLs discovered by Waybackurls, Katana, GAU, and Hakrawler, run against live subdomains. Basic filtering for common non-content file extensions (CSS, JS, images) is applied before saving.
+    -   `interesting_params.txt`: A list of unique query parameter names extracted from URLs in `Way_kat.txt`.
     -   `alive_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 200-399 status codes.
     -   `dead_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 400-599 status codes or failed requests (includes status code in output).
     -   `sensitive_exposure.txt`: URLs of potential sensitive files/paths discovered (e.g., `.env`, `.git/config`, `backup.sql`).
-    -   Placeholders: `wildcard_domains.txt`, `subdomain_technologies.json` are also created. (Note: `subdomain_takeover.txt` is now a primary output, not just a placeholder name).
+    -   Placeholders: `wildcard_domains.txt`, `subdomain_technologies.json` are also created.
+-   **URL Discovery Enhancement:**
+    -   Integrated `gau` and `hakrawler` into the URL discovery phase.
+-   **Parameter Extraction:**
+    -   A new step extracts unique query parameter names from all discovered URLs (`Way_kat.txt`) and saves them to `interesting_params.txt`.
 -   **Subdomain Takeover Check (Integrated into Recon Workflow):**
     -   Uses `subzy` tool.
     -   Runs against `subdomains_alive.txt`.
@@ -54,6 +59,8 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
         -   `waybackurls`: `go install -v github.com/tomnomnom/waybackurls@latest`
         -   `katana`: `go install -v github.com/projectdiscovery/katana/cmd/katana@latest` (script uses `katana -u <target> -silent -jc -nc -aff -kf all`)
         -   `subzy`: `go install -v github.com/LukaSikic/subzy@latest` (for subdomain takeover checks)
+        -   `gau`: `go install -v github.com/lc/gau@latest` (for URL discovery)
+        -   `hakrawler`: `go install -v github.com/hakluke/hakrawler@latest` (for URL discovery)
 -   **API Design & Endpoints:**
     -   The API is built using Flask.
     -   Asynchronous tasks (like running the recon workflow) are currently handled using `concurrent.futures.ThreadPoolExecutor`. For production, consider migrating to a more robust task queue like Celery with Redis/RabbitMQ.
