@@ -54,17 +54,24 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   Takes `urls_alive_file` as input.
     -   Intended tools for future integration: Gxss, kxss, Dalfox, XSStrike.
     -   Outputs a placeholder `xss_vulnerabilities.json` file.
--   **SQLi Scanner Module (Placeholder - `ch_modules/sqli_scanner/main.py`):**
-    -   Currently a placeholder, integrated into the main recon workflow.
-    -   Takes `urls_alive_file` and `interesting_params.txt` as input.
-    -   **Planned Techniques & Tooling:**
-        -   Time-based blind SQLi
-        -   Error-based detection
-        -   Boolean-based inference
-        -   WAF bypass payload injection
-        -   Integration with SQLMap & Ghauri using custom flags relevant to the above techniques.
-        -   DB fingerprinting + banner grabbing.
-    -   Outputs a placeholder `sqli_vulnerabilities.json` file. The "notes" section of this JSON now reflects that these advanced techniques were conceptually considered during the placeholder run. The `vulnerabilities` array would eventually be structured to detail findings related to these specific techniques (e.g., type of SQLi, vulnerable parameter, DBMS, WAF bypass used, PoC).
+-   **SQLi Scanner Module (`ch_modules/sqli_scanner/main.py`):**
+    -   **Current Implementation (Initial SQLMap Integration):**
+        -   Integrates `sqlmap` for scanning URLs with query parameters from `urls_alive_file`.
+        -   Uses `sqlmap` with flags: `--batch`, `--random-agent`, `--level=1`, `--risk=1`, `--technique=EBU` (Error-based, Boolean-based, Union-based), `--dbms`, `--banner`, `--is-dba`.
+        -   SQLMap output/session files for each tested URL are stored in a unique subdirectory under `instance/scan_outputs/<target_domain>/sqlmap_sessions/`.
+        -   Vulnerability detection is currently based on a heuristic parsing of SQLMap's `stdout` (looking for "is vulnerable" or "injection point(s)").
+        -   Outputs findings to `sqli_vulnerabilities.json`. Each finding includes:
+            -   `url`: The tested URL.
+            -   `parameter_implicated`: The parameter SQLMap reported (or "unknown").
+            -   `type_of_sqli`: Currently "Generic SQLi (via SQLMap - check logs)".
+            -   `dbms_fingerprint`: DBMS info if found in stdout.
+            -   `notes`: Message indicating SQLMap reported a potential vulnerability and to check logs.
+            -   `sqlmap_output_dir_relative`: Relative path to the specific SQLMap session directory for manual review.
+    -   **Planned Enhancements (from original placeholder spec):**
+        -   More robust parsing of SQLMap output files (instead of just stdout heuristic).
+        -   Explicit flags for Time-based blind SQLi (currently EBU techniques are primary).
+        -   Advanced WAF bypass techniques (currently relies on SQLMap's defaults or basic tampers if added).
+        -   Integration of Ghauri.
 -   **Tool Dependencies for Reconnaissance Workflow:**
     -   **Python Libraries (in `requirements.txt`):**
         -   `httpx`: For HTTP/S liveness checks and sensitive data discovery URL checks.
@@ -79,6 +86,9 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
         -   `subzy`: `go install -v github.com/LukaSikic/subzy@latest` (for subdomain takeover checks)
         -   `gau`: `go install -v github.com/lc/gau@latest` (for URL discovery)
         -   `hakrawler`: `go install -v github.com/hakluke/hakrawler@latest` (for URL discovery)
+    -   **SQLMap (Manual Install - Must be in PATH or configured):**
+        -   Installation: Typically `git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git sqlmap-dev` then run `sqlmap.py`. Or system package if available (e.g., `sudo apt install sqlmap`).
+        -   The script will attempt to call `sqlmap` or `python3 path/to/sqlmap.py`. A configurable path is recommended for robustness.
 -   **API Design & Endpoints:**
     -   The API is built using Flask.
     -   Asynchronous tasks (like running the recon workflow) are currently handled using `concurrent.futures.ThreadPoolExecutor`. For production, consider migrating to a more robust task queue like Celery with Redis/RabbitMQ.

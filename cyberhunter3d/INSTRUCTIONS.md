@@ -80,8 +80,22 @@ Several external Go-based tools are used by the reconnaissance script. You need 
     ```bash
     go install -v github.com/hakluke/hakrawler@latest
     ```
+*   **SQLMap:** (For SQL Injection scanning)
+    *   **Option 1 (Git Clone - Recommended for latest):**
+        ```bash
+        git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git sqlmap-dev
+        # You would then run it via python3 sqlmap-dev/sqlmap.py
+        # Ensure python3 is in your PATH.
+        # The script will attempt to call 'sqlmap' first, then 'sqlmap.py', then 'python3 path/to/sqlmap.py' if configured.
+        ```
+    *   **Option 2 (Package Manager - May not be latest):**
+        ```bash
+        sudo apt update && sudo apt install sqlmap # For Debian/Ubuntu
+        # Other OSs will have different commands (e.g., brew install sqlmap on macOS)
+        ```
+    *   Ensure `sqlmap` or `sqlmap.py` is executable and in your PATH, or provide a full path to `sqlmap.py` if the script is enhanced to support a configurable path (currently it assumes `sqlmap` is in PATH).
 
-**Verification:** After installation, ensure each tool is accessible by typing its name in the terminal (e.g., `subfinder -h`, `gau -h`, `hakrawler -h`). If you get a "command not found" error, ensure your Go binary path (usually `$HOME/go/bin` or `$GOPATH/bin`) is added to your system's `PATH` environment variable.
+**Verification:** After installation, ensure each tool is accessible by typing its name in the terminal (e.g., `subfinder -h`, `gau -h`, `hakrawler -h`, `sqlmap --version`). If you get a "command not found" error, ensure your Go binary path (usually `$HOME/go/bin` or `$GOPATH/bin`) or the SQLMap directory is added to your system's `PATH` environment variable.
 
 ## 2. Running the Reconnaissance Script Directly
 
@@ -111,7 +125,7 @@ The script will:
     *   `dead_domain.txt`: Dead/Error URLs (40xs/50xs).
     *   `sensitive_exposure.txt`: URLs of potential sensitive files/paths found.
     *   `xss_vulnerabilities.json`: Placeholder XSS scan results (currently mock).
-    *   `sqli_vulnerabilities.json`: Placeholder SQLi scan results (currently mock, notes reflect conceptually considered advanced techniques like time-based, error-based, etc.).
+    *   `sqli_vulnerabilities.json`: SQLi scan results from SQLMap (based on stdout parsing). Contains potential vulnerabilities, implicated parameters, DBMS info (if found), and path to SQLMap's session directory for detailed review.
 
 ## 3. Running the API Server
 
