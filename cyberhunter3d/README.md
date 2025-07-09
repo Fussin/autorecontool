@@ -23,10 +23,11 @@ Initial project structure setup. The tool currently features a comprehensive rec
     - Placeholder for XSS Hunting.
     - Initial SQLMap integration for SQL Injection (SQLi) Scanning.
     - Enhanced Placeholder for LFI Hunting (structured for various techniques).
-    - Enhanced Placeholder for CORS Scanning (structured for various checks like origin reflection, wildcard, null origin, Nuclei integration idea).
+    - Enhanced Placeholder for CORS Scanning (structured for various checks).
+    - Enhanced Placeholder for Sensitive Data Exposure Hunting (structured for .git, API keys, backups, configs, entropy, AI classification ideas).
 - **API (`ch_api/`):**
     - Flask-based server.
-    - Endpoints to start reconnaissance scans (now including SQLMap for SQLi and placeholders for LFI & CORS), check status, and retrieve results.
+    - Endpoints to start reconnaissance scans (now including SQLMap for SQLi and placeholders for LFI, CORS, & Sensitive Data), check status, and retrieve results.
     - Asynchronous scan execution using `ThreadPoolExecutor`.
     - Persistent storage of scan jobs and results metadata using SQLite (`instance/scan_jobs.db`).
 - **Web Interface (Placeholder):**
