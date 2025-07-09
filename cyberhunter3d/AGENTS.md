@@ -58,6 +58,16 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
 -   **SQLi Scanner Module (`ch_modules/sqli_scanner/main.py`):**
     -   **Current Implementation (Initial SQLMap Integration):**
         -   Integrates `sqlmap` for scanning URLs with query parameters from `urls_alive_file`.
+-   **LFI Hunter Module (Enhanced Placeholder - `ch_modules/lfi_hunter/`):**
+    -   **Structure:** Contains `main.py` orchestrator and sub-modules: `wrapper_fuzzer.py`, `traversal_generator.py`, `log_poisoner.py`, `rce_chain.py`, `report_builder.py`.
+    -   All sub-modules currently contain placeholder functions that log their conceptual checks.
+    -   `main.py` calls these placeholder functions.
+    -   `report_builder.py` compiles the final `lfi_vulnerabilities.json` with notes reflecting the detailed conceptual checks performed by the sub-modules.
+    -   **Conceptually Considers Techniques:** Path traversal (e.g., `../../etc/passwd`, `proc/self/environ`), wrapper-based LFI (base64, data://, expect://), null byte injection, conceptual log poisoning, and LFI to RCE chains.
+    -   Mentions future use of tools like `ffuf` or custom Python `requests` scripts.
+-   **Tool Dependencies for Reconnaissance Workflow:**
+    -   **Python Libraries (in `requirements.txt`):**
+        -   `httpx`: For HTTP/S liveness checks and sensitive data discovery URL checks.
         -   Uses `sqlmap` with flags: `--batch`, `--random-agent`, `--level=1`, `--risk=1`, `--technique=EBU` (Error-based, Boolean-based, Union-based), `--dbms`, `--banner`, `--is-dba`.
         -   SQLMap output/session files for each tested URL are stored in a unique subdirectory under `instance/scan_outputs/<target_domain>/sqlmap_sessions/`.
         -   Vulnerability detection is currently based on a heuristic parsing of SQLMap's `stdout` (looking for "is vulnerable" or "injection point(s)").

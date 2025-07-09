@@ -1,2 +1,0 @@
-m.testexample.com
-www.example.com

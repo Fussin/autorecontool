@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Instance Folder (for Flask app specific data like DBs, logs, uploads)
+instance/
+
+# Temporary Scan Output Folders (from direct script runs or older tests)
+scan_results_api/
+temp_scan_results_comprehensive/
+temp_scan_results_functional/
+temp_outputs_for_testing/
+temp_sdd_test_run/
+
+# Log files
+*.log
+logs/
+
+# Environment variables
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE settings
+.idea/
+.vscode/
+
+# OS generated files
+.DS_Store
+Thumbs.db
