@@ -35,6 +35,7 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   `sensitive_exposure.txt`: URLs of potential sensitive files/paths discovered (e.g., `.env`, `.git/config`, `backup.sql`).
     -   `xss_vulnerabilities.json`: Placeholder output for XSS hunter module.
     -   `sqli_vulnerabilities.json`: Placeholder output for SQLi scanner module.
+    -   `lfi_vulnerabilities.json`: Placeholder output for LFI hunter module.
     -   Placeholders: `wildcard_domains.txt`, `subdomain_technologies.json` are also created.
 -   **URL Discovery Enhancement:**
     -   Integrated `gau` and `hakrawler` into the URL discovery phase.
@@ -72,6 +73,12 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
         -   Explicit flags for Time-based blind SQLi (currently EBU techniques are primary).
         -   Advanced WAF bypass techniques (currently relies on SQLMap's defaults or basic tampers if added).
         -   Integration of Ghauri.
+-   **LFI Hunter Module (Placeholder - `ch_modules/lfi_hunter/main.py`):**
+    -   Currently a placeholder, integrated into the main recon workflow.
+    -   Takes `urls_alive_file` and `interesting_params.txt` as input.
+    -   **Conceptually Considers Techniques:** Path traversal (e.g., `../../etc/passwd`, `proc/self/environ`), wrapper-based LFI (base64, data://), null byte injection, conceptual log poisoning.
+    -   Mentions future use of tools like `ffuf` or custom Python `requests` scripts.
+    -   Outputs a placeholder `lfi_vulnerabilities.json` file with notes reflecting these conceptual checks.
 -   **Tool Dependencies for Reconnaissance Workflow:**
     -   **Python Libraries (in `requirements.txt`):**
         -   `httpx`: For HTTP/S liveness checks and sensitive data discovery URL checks.

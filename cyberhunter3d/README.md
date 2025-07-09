@@ -21,10 +21,11 @@ Initial project structure setup. The tool currently features a comprehensive rec
     - URL Filtering (httpx status codes)
     - Basic Sensitive Data Discovery (common files/paths like `.env`, `.git/config`, backups)
     - Placeholder for XSS Hunting.
-    - Initial SQLMap integration for SQL Injection (SQLi) Scanning (detects Error-based, Boolean-based, Union-based; DBMS fingerprinting; heuristic stdout parsing for results).
+    - Initial SQLMap integration for SQL Injection (SQLi) Scanning.
+    - Placeholder for LFI Hunting (conceptually covers path traversal, wrappers, null byte, log poisoning).
 - **API (`ch_api/`):**
     - Flask-based server.
-    - Endpoints to start reconnaissance scans (now including SQLMap for SQLi), check status, and retrieve results.
+    - Endpoints to start reconnaissance scans (now including SQLMap for SQLi and LFI placeholder), check status, and retrieve results.
     - Asynchronous scan execution using `ThreadPoolExecutor`.
     - Persistent storage of scan jobs and results metadata using SQLite (`instance/scan_jobs.db`).
 - **Web Interface (Placeholder):**
