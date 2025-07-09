@@ -126,7 +126,8 @@ The script will:
     *   `sensitive_exposure.txt`: URLs of potential sensitive files/paths found.
     *   `xss_vulnerabilities.json`: Placeholder XSS scan results (currently mock).
     *   `sqli_vulnerabilities.json`: SQLi scan results from SQLMap (based on stdout parsing). Contains potential vulnerabilities, implicated parameters, DBMS info (if found), and path to SQLMap's session directory for detailed review.
-    *   `lfi_vulnerabilities.json`: Placeholder LFI scan results (currently mock, notes reflect a more detailed breakdown of conceptually considered LFI techniques like path traversal, wrappers, log poisoning, and RCE chains).
+    *   `lfi_vulnerabilities.json`: Placeholder LFI scan results (currently mock, notes reflect a more detailed breakdown of conceptually considered LFI techniques).
+    *   `cors_vulnerabilities.json`: Placeholder CORS scan results (currently mock, notes reflect conceptually considered checks like origin reflection, wildcard, null origin, etc.).
 
 ## 3. Running the API Server
 

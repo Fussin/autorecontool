@@ -343,7 +343,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             subdomain_takeover_file, interesting_params_file,
             os.path.join(domain_output_path, "xss_vulnerabilities.json"),
             os.path.join(domain_output_path, "sqli_vulnerabilities.json"),
-            os.path.join(domain_output_path, "lfi_vulnerabilities.json") # LFI file
+            os.path.join(domain_output_path, "lfi_vulnerabilities.json"),
+            os.path.join(domain_output_path, "cors_vulnerabilities.json") # CORS file
         ]
         for f_path in early_exit_files:
             if not os.path.exists(f_path): open(f_path, 'w').close()
@@ -357,6 +358,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
                  with open(f_path, 'w') as fsq: json.dump({"notes": "SQLi scanning skipped: No subdomains found.", "vulnerabilities": []}, fsq, indent=4)
             if f_path == os.path.join(domain_output_path, "lfi_vulnerabilities.json"):
                  with open(f_path, 'w') as flf: json.dump({"notes": "LFI hunting skipped: No subdomains found.", "vulnerabilities": []}, flf, indent=4)
+            if f_path == os.path.join(domain_output_path, "cors_vulnerabilities.json"):
+                 with open(f_path, 'w') as fco: json.dump({"notes": "CORS scanning skipped: No subdomains found.", "vulnerabilities": []}, fco, indent=4)
 
 
         with open(metadata_file, "w") as f: f.write("{}")
@@ -372,7 +375,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "interesting_params_file": interesting_params_file,
             "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"),
             "sqli_results_file": os.path.join(domain_output_path, "sqli_vulnerabilities.json"),
-            "lfi_results_file": os.path.join(domain_output_path, "lfi_vulnerabilities.json"), # Add to results
+            "lfi_results_file": os.path.join(domain_output_path, "lfi_vulnerabilities.json"),
+            "cors_results_file": os.path.join(domain_output_path, "cors_vulnerabilities.json"), # Add to results
             "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -445,7 +449,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             sensitive_exposure_file, interesting_params_file,
             os.path.join(domain_output_path, "xss_vulnerabilities.json"),
             os.path.join(domain_output_path, "sqli_vulnerabilities.json"),
-            os.path.join(domain_output_path, "lfi_vulnerabilities.json") # LFI file
+            os.path.join(domain_output_path, "lfi_vulnerabilities.json"),
+            os.path.join(domain_output_path, "cors_vulnerabilities.json") # CORS file
         ]
         for f_path in early_exit_files_no_live_subs:
             if not os.path.exists(f_path): open(f_path, 'w').close()
@@ -457,6 +462,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
                  with open(f_path, 'w') as fsq: json.dump({"notes": "SQLi scanning skipped: No live subdomains.", "vulnerabilities": []}, fsq, indent=4)
             if f_path == os.path.join(domain_output_path, "lfi_vulnerabilities.json"):
                  with open(f_path, 'w') as flf: json.dump({"notes": "LFI hunting skipped: No live subdomains.", "vulnerabilities": []}, flf, indent=4)
+            if f_path == os.path.join(domain_output_path, "cors_vulnerabilities.json"):
+                 with open(f_path, 'w') as fco: json.dump({"notes": "CORS scanning skipped: No live subdomains.", "vulnerabilities": []}, fco, indent=4)
 
         # Ensure other placeholder files also exist if not created by earlier logic
         if not os.path.exists(takeover_file): open(takeover_file, 'w').close()
@@ -478,7 +485,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "sensitive_exposure_file": sensitive_exposure_file,
             "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"),
             "sqli_results_file": os.path.join(domain_output_path, "sqli_vulnerabilities.json"),
-            "lfi_results_file": os.path.join(domain_output_path, "lfi_vulnerabilities.json"), # Add to results
+            "lfi_results_file": os.path.join(domain_output_path, "lfi_vulnerabilities.json"),
+            "cors_results_file": os.path.join(domain_output_path, "cors_vulnerabilities.json"), # Add to results
             "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -543,7 +551,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             interesting_params_file,
             os.path.join(domain_output_path, "xss_vulnerabilities.json"),
             os.path.join(domain_output_path, "sqli_vulnerabilities.json"),
-            os.path.join(domain_output_path, "lfi_vulnerabilities.json") # LFI file
+            os.path.join(domain_output_path, "lfi_vulnerabilities.json"),
+            os.path.join(domain_output_path, "cors_vulnerabilities.json") # CORS file
         ]
         for f_path in early_exit_files_no_urls:
             if not os.path.exists(f_path): open(f_path, 'w').close()
@@ -555,6 +564,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
                  with open(f_path, 'w') as fsq: json.dump({"notes": "SQLi scanning skipped: No URLs discovered.", "vulnerabilities": []}, fsq, indent=4)
             if f_path == os.path.join(domain_output_path, "lfi_vulnerabilities.json"):
                  with open(f_path, 'w') as flf: json.dump({"notes": "LFI hunting skipped: No URLs discovered.", "vulnerabilities": []}, flf, indent=4)
+            if f_path == os.path.join(domain_output_path, "cors_vulnerabilities.json"):
+                 with open(f_path, 'w') as fco: json.dump({"notes": "CORS scanning skipped: No URLs discovered.", "vulnerabilities": []}, fco, indent=4)
 
         # Ensure other placeholders also exist
         if not os.path.exists(takeover_file): open(takeover_file, 'w').close()
@@ -575,7 +586,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "sensitive_exposure_file": sensitive_exposure_file,
             "xss_results_file": os.path.join(domain_output_path, "xss_vulnerabilities.json"),
             "sqli_results_file": os.path.join(domain_output_path, "sqli_vulnerabilities.json"),
-            "lfi_results_file": os.path.join(domain_output_path, "lfi_vulnerabilities.json"), # Add to results
+            "lfi_results_file": os.path.join(domain_output_path, "lfi_vulnerabilities.json"),
+            "cors_results_file": os.path.join(domain_output_path, "cors_vulnerabilities.json"), # Add to results
             "wildcard_domains_file": wildcard_file,
             "metadata_file": metadata_file
         }
@@ -712,6 +724,34 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         print("[INFO] No live URLs found. Skipping LFI Hunter (Placeholder).")
         with open(lfi_results_file, "w") as f: f.write('{"notes": "LFI hunting skipped: No live URLs.", "vulnerabilities": []}')
 
+    # --- Phase XYZ: CORS Hunter (Placeholder Call) ---
+    cors_results_file = os.path.join(domain_output_path, "cors_vulnerabilities.json") # Initialize path
+    if os.path.exists(urls_alive_file) and os.path.getsize(urls_alive_file) > 0:
+        print("\n--- Running CORS Hunter (Placeholder) ---")
+        try:
+            from ..cors_hunter.main import hunt_for_cors_issues # Relative import
+            # Determine root_domain for CORS subdomain check (can be simplified from target_domain)
+            # For now, passing target_domain as root_domain. More sophisticated extraction might be needed if target_domain is itself a subdomain.
+            parsed_main_target = urlparse(f"http://{target_domain}") # ensure scheme for netloc
+            main_root_domain = parsed_main_target.netloc
+
+            cors_scan_results = hunt_for_cors_issues(
+                target_urls_file=urls_alive_file,
+                root_domain=main_root_domain,
+                output_dir=domain_output_path
+            )
+            cors_results_file = cors_scan_results.get("cors_results_file", cors_results_file)
+            print(f"CORS Hunter (Placeholder) status: {cors_scan_results.get('status')}")
+        except ImportError:
+            print("[WARN] CORS Hunter module not found or could not be imported. Skipping CORS scan.")
+            with open(cors_results_file, "w") as f: json.dump({"notes": "CORS Hunter module not available.", "vulnerabilities": []},f , indent=4)
+        except Exception as e:
+            print(f"[ERROR] Error during CORS Hunter (Placeholder) execution: {e}")
+            with open(cors_results_file, "w") as f: json.dump({"notes": f"Error during CORS scan: {e}", "vulnerabilities": []},f , indent=4)
+    else:
+        print("[INFO] No live URLs found. Skipping CORS Hunter (Placeholder).")
+        with open(cors_results_file, "w") as f: json.dump({"notes": "CORS hunting skipped: No live URLs.", "vulnerabilities": []},f , indent=4)
+
 
     final_results = {
         "target_domain": target_domain,
@@ -728,7 +768,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         "sensitive_exposure_file": sensitive_exposure_file,
         "xss_results_file": xss_results_file,
         "sqli_results_file": sqli_results_file,
-        "lfi_results_file": lfi_results_file, # Added LFI results file
+        "lfi_results_file": lfi_results_file,
+        "cors_results_file": cors_results_file, # Added CORS results file
         "wildcard_domains_file": wildcard_file,
         "metadata_file": metadata_file,
     }

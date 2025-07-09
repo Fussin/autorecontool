@@ -36,6 +36,7 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   `xss_vulnerabilities.json`: Placeholder output for XSS hunter module.
     -   `sqli_vulnerabilities.json`: Placeholder output for SQLi scanner module.
     -   `lfi_vulnerabilities.json`: Placeholder output for LFI hunter module.
+    -   `cors_vulnerabilities.json`: Placeholder output for CORS hunter module.
     -   Placeholders: `wildcard_domains.txt`, `subdomain_technologies.json` are also created.
 -   **URL Discovery Enhancement:**
     -   Integrated `gau` and `hakrawler` into the URL discovery phase.
@@ -89,6 +90,13 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   **Conceptually Considers Techniques:** Path traversal (e.g., `../../etc/passwd`, `proc/self/environ`), wrapper-based LFI (base64, data://), null byte injection, conceptual log poisoning.
     -   Mentions future use of tools like `ffuf` or custom Python `requests` scripts.
     -   Outputs a placeholder `lfi_vulnerabilities.json` file with notes reflecting these conceptual checks.
+-   **CORS Hunter Module (Enhanced Placeholder - `ch_modules/cors_hunter/`):**
+    -   **Structure:** Contains `main.py` orchestrator and sub-modules for specific CORS checks (`origin_tester.py`, `wildcard_checker.py`, `credential_checker.py`, `nuclei_wrapper.py` (conceptual), `subdomain_scanner.py`, `null_origin_tester.py`) and `report_builder.py`.
+    -   All sub-modules currently contain placeholder functions that log their conceptual checks.
+    -   `main.py` calls these placeholder functions.
+    -   `report_builder.py` compiles the final `cors_vulnerabilities.json` with notes reflecting the detailed conceptual checks.
+    -   **Conceptually Considers Techniques:** Origin reflection, wildcard origin detection (especially with credentials), credential misconfigurations, null origin behavior, subdomain trust abuse.
+    -   Mentions future use of Nuclei CORS templates.
 -   **Tool Dependencies for Reconnaissance Workflow:**
     -   **Python Libraries (in `requirements.txt`):**
         -   `httpx`: For HTTP/S liveness checks and sensitive data discovery URL checks.
