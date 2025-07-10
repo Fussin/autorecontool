@@ -37,7 +37,8 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   `sqli_vulnerabilities.json`: Placeholder output for SQLi scanner module.
     -   `lfi_vulnerabilities.json`: Placeholder output for LFI hunter module.
     -   `cors_vulnerabilities.json`: Placeholder output for CORS hunter module.
-    -   `sensitive_data_findings.json`: Placeholder output for the structured Sensitive Data Exposure hunter module. (This replaces the older, simpler `sensitive_exposure.txt`).
+    -   `sensitive_data_findings.json`: Placeholder output for the structured Sensitive Data Exposure hunter module.
+    -   `ssrf_vulnerabilities.json`: Placeholder output for SSRF hunter module.
     -   Placeholders: `wildcard_domains.txt`, `subdomain_technologies.json` are also created.
 -   **URL Discovery Enhancement:**
     -   Integrated `gau` and `hakrawler` into the URL discovery phase.
@@ -101,6 +102,15 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
 -   **Sensitive Data Exposure Hunter Module (Enhanced Placeholder - `ch_modules/sensitive_data_hunter/`):**
     -   **Structure:** Contains `main.py` orchestrator and sub-modules: `git_exposure_scanner.py`, `api_key_detector.py`, `backup_file_fuzzer.py`, `config_file_scanner.py`, `file_entropy_analyzer.py` (conceptual), `ai_leak_classifier.py` (conceptual), and `report_builder.py`.
     -   All sub-modules currently contain placeholder functions that log their conceptual checks.
+-   **SSRF Hunter Module (Enhanced Placeholder - `ch_modules/ssrf_hunter/`):**
+    -   **Structure:** Contains `main.py` orchestrator and sub-modules: `dnslog_checker.py`, `payload_generator.py`, `metadata_abuser.py`, `port_scanner.py`, and `report_builder.py`.
+    -   All sub-modules currently contain placeholder functions that log their conceptual checks.
+    -   `main.py` calls these placeholder functions.
+    -   `report_builder.py` compiles the final `ssrf_vulnerabilities.json` with notes reflecting the detailed conceptual checks.
+    -   **Conceptually Considers Techniques:** Internal IP brute-forcing, DNS callback checks, protocol smuggling (gopher://, file://, dict://), metadata API abuse (AWS, GCP, Azure), and SSRF to RCE chaining ideas.
+-   **Tool Dependencies for Reconnaissance Workflow:**
+    -   **Python Libraries (in `requirements.txt`):**
+        -   `httpx`: For HTTP/S liveness checks. (Note: the old simple sensitive_exposure.txt logic was based on this, new module is placeholder based).
     -   `main.py` calls these placeholder functions, using live URLs and subdomains as input.
     -   `report_builder.py` compiles the final `sensitive_data_findings.json` with notes reflecting the detailed conceptual checks.
     -   **Conceptually Considers Techniques:** .git exposure (GitTools/git-dumper idea), API key/secret detection (regex/entropy), backup/archive fuzzing, exposed config file scanning, file content entropy analysis, and AI-assisted leak classification.

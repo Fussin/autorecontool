@@ -128,7 +128,8 @@ The script will:
     *   `sqli_vulnerabilities.json`: SQLi scan results from SQLMap (based on stdout parsing). Contains potential vulnerabilities, implicated parameters, DBMS info (if found), and path to SQLMap's session directory for detailed review.
     *   `lfi_vulnerabilities.json`: Placeholder LFI scan results (currently mock, notes reflect a more detailed breakdown of conceptually considered LFI techniques).
     *   `cors_vulnerabilities.json`: Placeholder CORS scan results (currently mock, notes reflect conceptually considered checks).
-    *   `sensitive_data_findings.json`: Placeholder Sensitive Data Exposure scan results (currently mock, notes reflect conceptually considered checks for .git, API keys, backups, configs, etc.). (This replaces the older `sensitive_exposure.txt`).
+    *   `sensitive_data_findings.json`: Placeholder Sensitive Data Exposure scan results (currently mock, notes reflect conceptually considered checks for .git, API keys, backups, configs, etc.).
+    *   `ssrf_vulnerabilities.json`: Placeholder SSRF scan results (currently mock, notes reflect conceptually considered checks like internal IP fuzzing, DNS callbacks, protocol smuggling, metadata abuse).
 
 ## 3. Running the API Server
 
