@@ -10,7 +10,7 @@ import json # Added for DNS resolution output
 from urllib.parse import urlparse, parse_qs # Added for URL cleaning and parameter extraction
 
 # --- Subdomain Enumeration Tool Wrappers ---
-
+# ... (all _run_tool, run_subfinder, run_sublist3r, etc. functions remain unchanged) ...
 def _run_tool(command: list[str], tool_name: str, target_domain: str) -> set[str]:
     """Helper function to run a command-line tool and capture its output."""
     print(f"[INFO] Running {tool_name} for: {target_domain}")
@@ -221,7 +221,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
     lfi_results_file = os.path.join(domain_output_path, "lfi_vulnerabilities.json")
     cors_results_file = os.path.join(domain_output_path, "cors_vulnerabilities.json")
     sensitive_data_findings_file = os.path.join(domain_output_path, "sensitive_data_findings.json")
-    ssrf_results_file = os.path.join(domain_output_path, "ssrf_vulnerabilities.json") # New for SSRF
+    ssrf_results_file = os.path.join(domain_output_path, "ssrf_vulnerabilities.json")
+    xxe_results_file = os.path.join(domain_output_path, "xxe_vulnerabilities.json") # New for XXE
 
     wildcard_file = os.path.join(domain_output_path, "wildcard_domains.txt")
     metadata_file = os.path.join(domain_output_path, "subdomain_technologies.json")
@@ -242,7 +243,8 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             lfi_results_file: {"notes": f"LFI hunting skipped: {reason_message}", "vulnerabilities": []},
             cors_results_file: {"notes": f"CORS scanning skipped: {reason_message}", "vulnerabilities": []},
             sensitive_data_findings_file: {"notes": f"Sensitive Data Exposure hunting skipped: {reason_message}", "vulnerabilities": []},
-            ssrf_results_file: {"notes": f"SSRF scanning skipped: {reason_message}", "vulnerabilities": []} # Add SSRF
+            ssrf_results_file: {"notes": f"SSRF scanning skipped: {reason_message}", "vulnerabilities": []},
+            xxe_results_file: {"notes": f"XXE scanning skipped: {reason_message}", "vulnerabilities": []} # Add XXE
         }
         files_with_text_content_map = {
             subdomain_takeover_file: f"# Subdomain takeover check skipped: {reason_message}\n",
@@ -280,7 +282,7 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "urls_dead_file": urls_dead_file, "sensitive_data_findings_file": sensitive_data_findings_file,
             "xss_results_file": xss_results_file, "sqli_results_file": sqli_results_file,
             "lfi_results_file": lfi_results_file, "cors_results_file": cors_results_file,
-            "ssrf_results_file": ssrf_results_file, # Add SSRF
+            "ssrf_results_file": ssrf_results_file, "xxe_results_file": xxe_results_file, # Add XXE
             "wildcard_domains_file": wildcard_file, "metadata_file": metadata_file
         }
 
@@ -328,7 +330,7 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "urls_dead_file": urls_dead_file, "sensitive_data_findings_file": sensitive_data_findings_file,
             "xss_results_file": xss_results_file, "sqli_results_file": sqli_results_file,
             "lfi_results_file": lfi_results_file, "cors_results_file": cors_results_file,
-            "ssrf_results_file": ssrf_results_file, # Add SSRF
+            "ssrf_results_file": ssrf_results_file, "xxe_results_file": xxe_results_file, # Add XXE
             "wildcard_domains_file": wildcard_file, "metadata_file": metadata_file
         }
 
@@ -366,7 +368,7 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             "urls_dead_file": urls_dead_file, "sensitive_data_findings_file": sensitive_data_findings_file,
             "xss_results_file": xss_results_file, "sqli_results_file": sqli_results_file,
             "lfi_results_file": lfi_results_file, "cors_results_file": cors_results_file,
-            "ssrf_results_file": ssrf_results_file, # Add SSRF
+            "ssrf_results_file": ssrf_results_file, "xxe_results_file": xxe_results_file, # Add XXE
             "wildcard_domains_file": wildcard_file, "metadata_file": metadata_file
         }
 
@@ -390,8 +392,6 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
 
     # --- Placeholder Vulnerability Scanners ---
     scan_input_valid = os.path.exists(urls_alive_file) and os.path.getsize(urls_alive_file) > 0
-    # The following line was identified as a SyntaxError source and is being removed if it matches.
-    # ```  <-- This is the problematic line if it exists around here.
 
     # XSS Hunter
     print("\n--- Running XSS Hunter (Placeholder) ---" if scan_input_valid else "[INFO] Skipping XSS Hunter: No live URLs.")
@@ -456,7 +456,7 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
             with open(sensitive_data_findings_file,"w") as f_sde_err:
                 json.dump({"notes": f"SDE scan error: {e}", "vulnerabilities":[]}, f_sde_err, indent=4)
 
-    # SSRF Hunter (New)
+    # SSRF Hunter
     print("\n--- Running SSRF Hunter (Placeholder) ---" if scan_input_valid else "[INFO] Skipping SSRF Hunter: No live URLs.")
     try:
         from ..ssrf_hunter.main import hunt_for_ssrf
@@ -466,6 +466,17 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         print(f"[ERROR] SSRF Hunter call failed: {e}")
         if not os.path.exists(ssrf_results_file):
             with open(ssrf_results_file, "w") as f: json.dump({"notes": f"SSRF scan error: {e}", "vulnerabilities": []}, f, indent=4)
+
+    # XXE Hunter (New)
+    print("\n--- Running XXE Hunter (Placeholder) ---" if scan_input_valid else "[INFO] Skipping XXE Hunter: No live URLs.")
+    try:
+        from ..xxe_hunter.main import hunt_for_xxe # Relative import
+        xxe_scan_results = hunt_for_xxe(urls_alive_file if scan_input_valid else "", domain_output_path)
+        xxe_results_file = xxe_scan_results.get("xxe_results_file", xxe_results_file)
+    except Exception as e:
+        print(f"[ERROR] XXE Hunter call failed: {e}")
+        if not os.path.exists(xxe_results_file): # Ensure file exists even on import error before this point
+            with open(xxe_results_file,"w") as f: json.dump({"notes": f"XXE scan error: {e}", "vulnerabilities":[]}, f, indent=4)
 
 
     for f_path_final in [wildcard_file]:
@@ -482,7 +493,7 @@ def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") 
         "urls_dead_file": urls_dead_file, "sensitive_data_findings_file": sensitive_data_findings_file,
         "xss_results_file": xss_results_file, "sqli_results_file": sqli_results_file,
         "lfi_results_file": lfi_results_file, "cors_results_file": cors_results_file,
-        "ssrf_results_file": ssrf_results_file, # Added SSRF
+        "ssrf_results_file": ssrf_results_file, "xxe_results_file": xxe_results_file, # Added XXE
         "wildcard_domains_file": wildcard_file, "metadata_file": metadata_file,
     }
     print(f"\n[SUCCESS] Comprehensive recon workflow completed for: {target_domain}")

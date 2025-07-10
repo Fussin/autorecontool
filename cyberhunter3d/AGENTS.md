@@ -39,9 +39,9 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
     -   `cors_vulnerabilities.json`: Placeholder output for CORS hunter module.
     -   `sensitive_data_findings.json`: Placeholder output for the structured Sensitive Data Exposure hunter module.
     -   `ssrf_vulnerabilities.json`: Placeholder output for SSRF hunter module.
+    -   `xxe_vulnerabilities.json`: Placeholder output for XXE hunter module.
     -   Placeholders: `wildcard_domains.txt`, `subdomain_technologies.json` are also created.
 -   **URL Discovery Enhancement:**
-    -   Integrated `gau` and `hakrawler` into the URL discovery phase.
 -   **Parameter Extraction:**
     -   A new step extracts unique query parameter names from all discovered URLs (`Way_kat.txt`) and saves them to `interesting_params.txt`.
 -   **Subdomain Takeover Check (Integrated into Recon Workflow):**
