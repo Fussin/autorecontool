@@ -6,14 +6,22 @@ import httpx
 import asyncio
 import tempfile
 import re
-import json # Added for DNS resolution output
-from urllib.parse import urlparse, parse_qs # Added for URL cleaning and parameter extraction
+import json
+from urllib.parse import urlparse, parse_qs
+import logging # Added for better logging
+
+# --- Setup Logger ---
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    # Basic configuration if not already configured by a higher-level module (e.g., API)
+    # In a real app, this would likely be configured globally.
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 
 # --- Subdomain Enumeration Tool Wrappers ---
-# ... (all _run_tool, run_subfinder, run_sublist3r, etc. functions remain unchanged) ...
 def _run_tool(command: list[str], tool_name: str, target_domain: str) -> set[str]:
     """Helper function to run a command-line tool and capture its output."""
-    print(f"[INFO] Running {tool_name} for: {target_domain}")
+    logger.info(f"Running {tool_name} for: {target_domain}")
     found_items = set()
     try:
         process = subprocess.Popen(
@@ -28,23 +36,23 @@ def _run_tool(command: list[str], tool_name: str, target_domain: str) -> set[str
             for line in stdout.splitlines():
                 item = line.strip()
                 if item and ('.' in item):
-                    item = re.sub(r'^https?://', '', item)
+                    item = re.sub(r'^https?://', '', item) # Normalize by removing scheme if present
                     found_items.add(item)
-            print(f"[INFO] {tool_name} found {len(found_items)} items for {target_domain}.")
+            logger.info(f"{tool_name} found {len(found_items)} items for {target_domain}.")
         else:
-            print(f"[ERROR] {tool_name} failed for {target_domain}. RC: {process.returncode}")
-            print(f"[ERROR] {tool_name} stderr: {stderr[:500]}...")
+            logger.error(f"{tool_name} failed for {target_domain}. RC: {process.returncode}")
+            logger.error(f"{tool_name} stderr: {stderr[:500]}...")
             if "command not found" in stderr.lower() or "no such file or directory" in stderr.lower():
-                print(f"[ERROR] {tool_name} command not found. Ensure it's installed and in PATH.")
+                logger.error(f"{tool_name} command not found. Ensure it's installed and in PATH.")
     except FileNotFoundError:
-        print(f"[ERROR] {tool_name} command not found. Ensure it's installed and in PATH.")
+        logger.error(f"{tool_name} command not found. Ensure it's installed and in PATH.")
     except subprocess.TimeoutExpired:
-        print(f"[ERROR] {tool_name} timed out for {target_domain}.")
+        logger.error(f"{tool_name} timed out for {target_domain}.")
         if process and process.poll() is None:
             process.kill()
             process.communicate()
     except Exception as e:
-        print(f"[ERROR] An exception occurred while running {tool_name} for {target_domain}: {e}")
+        logger.error(f"An exception occurred while running {tool_name} for {target_domain}: {e}", exc_info=True)
     return found_items
 
 def run_subfinder(target_domain: str) -> set[str]:
@@ -62,19 +70,20 @@ def run_sublist3r(target_domain: str, temp_dir: str) -> set[str]:
                     subdomain = line.strip()
                     if subdomain and '.' in subdomain:
                          subdomains.add(subdomain)
-            print(f"[INFO] Sublist3r (from file) found {len(subdomains)} subdomains for {target_domain}.")
+            logger.info(f"Sublist3r (from file) found {len(subdomains)} subdomains for {target_domain}.")
         except Exception as e:
-            print(f"[ERROR] Could not read Sublist3r output file {temp_output_file}: {e}")
+            logger.error(f"Could not read Sublist3r output file {temp_output_file}: {e}", exc_info=True)
         finally:
             try:
                 os.remove(temp_output_file)
             except OSError:
                 pass
     else:
-        print(f"[INFO] Sublist3r did not create an output file or failed: {temp_output_file}")
+        logger.info(f"Sublist3r did not create an output file or failed: {temp_output_file}")
     return subdomains
 
 def run_amass(target_domain: str) -> set[str]:
+    # Amass intel can be slow, consider passive mode for speed: amass enum -passive -d target_domain
     return _run_tool(["amass", "intel", "-d", target_domain, "-whois", "-ip"], "Amass", target_domain)
 
 def run_assetfinder(target_domain: str) -> set[str]:
@@ -84,7 +93,7 @@ def run_waybackurls(target: str) -> set[str]:
     return _run_tool(["waybackurls", target], "Waybackurls", target)
 
 def run_katana(target: str) -> set[str]:
-    return _run_tool(["katana", "-u", target, "-silent", "-jc", "-nc", "-aff", "-kf", "all"], "Katana", target)
+    return _run_tool(["katana", "-u", target, "-silent", "-jc", "-nc", "-aff", "-kf", "all", "-c", "5"], "Katana", target) # Added concurrency
 
 def run_gau(target_domain_or_subdomain: str) -> set[str]:
     return _run_tool(["gau", "--threads", "5", target_domain_or_subdomain], "GAU", target_domain_or_subdomain)
@@ -93,9 +102,9 @@ def run_hakrawler(target_domain_or_subdomain: str) -> set[str]:
     return _run_tool(["hakrawler", "-url", target_domain_or_subdomain, "-depth", "2", "-plain"], "Hakrawler", target_domain_or_subdomain)
 
 def extract_parameters_from_urls(urls_file_path: str, output_file_params: str):
-    print(f"[INFO] Starting parameter extraction from: {urls_file_path}")
+    logger.info(f"Starting parameter extraction from: {urls_file_path}")
     if not os.path.exists(urls_file_path) or os.path.getsize(urls_file_path) == 0:
-        print(f"[INFO] URL file '{urls_file_path}' is empty or not found. Skipping parameter extraction.")
+        logger.info(f"URL file '{urls_file_path}' is empty or not found. Skipping parameter extraction.")
         with open(output_file_params, "w") as f:
             f.write("# URL file for parameter extraction was empty or not found.\n")
         return
@@ -111,57 +120,57 @@ def extract_parameters_from_urls(urls_file_path: str, output_file_params: str):
                     for param_name in query_params.keys():
                         unique_params.add(param_name)
                 except Exception as e:
-                    print(f"[WARN] Could not parse URL or extract params from '{url}' (line {line_num+1}): {e}")
+                    logger.warning(f"Could not parse URL or extract params from '{url}' (line {line_num+1}): {e}")
         with open(output_file_params, "w") as f_out:
             if unique_params:
                 for param in sorted(list(unique_params)):
                     f_out.write(param + "\n")
-                print(f"[INFO] Extracted {len(unique_params)} unique parameters to: {output_file_params}")
+                logger.info(f"Extracted {len(unique_params)} unique parameters to: {output_file_params}")
             else:
                 f_out.write("# No query parameters found in the provided URLs.\n")
-                print(f"[INFO] No query parameters found in URLs from {urls_file_path}.")
+                logger.info(f"No query parameters found in URLs from {urls_file_path}.")
     except Exception as e:
-        print(f"[ERROR] Failed during parameter extraction process: {e}")
+        logger.error(f"Failed during parameter extraction process: {e}", exc_info=True)
         with open(output_file_params, "w") as f_out:
             f_out.write(f"# Error during parameter extraction: {e}\n")
 
 def run_subzy_takeover_check(live_subdomains_file: str, output_file_subzy: str, target_domain_for_log: str) -> bool:
-    print(f"[INFO] Running Subzy for subdomain takeover check on file: {live_subdomains_file}")
+    logger.info(f"Running Subzy for subdomain takeover check on file: {live_subdomains_file}")
     if not os.path.exists(live_subdomains_file) or os.path.getsize(live_subdomains_file) == 0:
-        print(f"[INFO] Subzy: Live subdomains file '{live_subdomains_file}' is empty or not found. Skipping takeover check.")
+        logger.info(f"Subzy: Live subdomains file '{live_subdomains_file}' is empty or not found. Skipping takeover check.")
         with open(output_file_subzy, "w") as f:
             f.write("# No live subdomains to check for takeover.\n")
         return True
     command = ["subzy", "run", "--targets", live_subdomains_file, "--output", output_file_subzy, "--hide_fails"]
     try:
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        stdout, stderr = process.communicate(timeout=600)
+        stdout, stderr = process.communicate(timeout=600) # 10 min timeout
         if process.returncode == 0:
-            print(f"[INFO] Subzy completed successfully for {target_domain_for_log}.")
+            logger.info(f"Subzy completed successfully for {target_domain_for_log}.")
             if os.path.exists(output_file_subzy) and os.path.getsize(output_file_subzy) > 0:
-                 print(f"[VULN_POTENTIAL] Subzy found potential takeovers for {target_domain_for_log}. Results in: {output_file_subzy}")
+                 logger.info(f"[VULN_POTENTIAL] Subzy found potential takeovers for {target_domain_for_log}. Results in: {output_file_subzy}")
             else:
-                 print(f"[INFO] Subzy found no potential takeovers for {target_domain_for_log}.")
-                 if not os.path.exists(output_file_subzy):
+                 logger.info(f"Subzy found no potential takeovers for {target_domain_for_log}.")
+                 if not os.path.exists(output_file_subzy): # Ensure file exists even if empty
                      with open(output_file_subzy, "w") as f: f.write("# No takeover vulnerabilities found by Subzy.\n")
             return True
         else:
-            print(f"[ERROR] Subzy failed for {target_domain_for_log}. RC: {process.returncode}")
-            print(f"[ERROR] Subzy stdout: {stdout[:500]}")
-            print(f"[ERROR] Subzy stderr: {stderr[:500]}")
-            with open(output_file_subzy, "w") as f: f.write(f"# Subzy execution failed. Stderr: {stderr[:200]}\n")
+            logger.error(f"Subzy failed for {target_domain_for_log}. RC: {process.returncode}")
+            logger.error(f"Subzy stdout: {stdout[:500]}")
+            logger.error(f"Subzy stderr: {stderr[:500]}")
+            with open(output_file_subzy, "w") as f: f.write(f"# Subzy execution failed. Stderr: {stderr[:200]}\n") # Write error to file
             return False
     except FileNotFoundError:
-        print(f"[ERROR] Subzy command not found. Ensure it's installed and in PATH.")
+        logger.error(f"Subzy command not found. Ensure it's installed and in PATH.")
         with open(output_file_subzy, "w") as f: f.write("# Subzy command not found.\n")
         return False
     except subprocess.TimeoutExpired:
-        print(f"[ERROR] Subzy timed out for {target_domain_for_log}.")
+        logger.error(f"Subzy timed out for {target_domain_for_log}.")
         if process and process.poll() is None: process.kill(); process.communicate()
         with open(output_file_subzy, "w") as f: f.write("# Subzy timed out.\n")
         return False
     except Exception as e:
-        print(f"[ERROR] An exception occurred while running Subzy for {target_domain_for_log}: {e}")
+        logger.error(f"An exception occurred while running Subzy for {target_domain_for_log}: {e}", exc_info=True)
         with open(output_file_subzy, "w") as f: f.write(f"# Exception during Subzy run: {e}\n")
         return False
 
@@ -171,359 +180,396 @@ async def _check_item_liveness(item_to_check: str, client: httpx.AsyncClient, is
         urls_to_probe.append(item_to_check)
     else:
         subdomain = item_to_check
-        ports_to_check = ["", ":8000", ":8080"]
+        ports_to_check = ["", ":8000", ":8080"] # Standard ports, can be expanded
         schemes = ["https", "http"]
         for port_suffix in ports_to_check:
             for scheme in schemes:
+                # Avoid redundant http://subdomain (no port) if https://subdomain (no port) is already checked or vice versa
                 if (scheme == "http" and port_suffix == "") or (scheme == "https" and port_suffix == ""):
                     urls_to_probe.append(f"{scheme}://{subdomain}")
-                elif port_suffix:
+                elif port_suffix: # Only add ports for non-standard cases
                      urls_to_probe.append(f"{scheme}://{subdomain}{port_suffix}")
-    for url_probe in urls_to_probe:
+
+    unique_probes = sorted(list(set(urls_to_probe))) # Ensure unique probes
+
+    for url_probe in unique_probes:
         try:
-            response = await client.get(url_probe, timeout=7, follow_redirects=True)
+            # logger.debug(f"Probing liveness for: {url_probe}")
+            response = await client.get(url_probe, timeout=7, follow_redirects=True) # Increased timeout slightly
+            # For subdomains, any 2xx, 3xx, 401, 403 is usually "live enough" to warrant further checks
             if not is_url and (200 <= response.status_code < 400 or response.status_code in [401, 403]):
                 return item_to_check, True, response.status_code
-            if is_url:
+            # For URLs, we are more interested in whether it's generally accessible (2xx, 3xx) or a client/server error
+            if is_url: # Any response means the URL was processed
                 return item_to_check, True, response.status_code
-        except httpx.RequestError: pass
-        except Exception: pass
-    return item_to_check, False, None
+        except httpx.RequestError as exc:
+            # logger.debug(f"RequestError for {url_probe}: {exc}")
+            pass # Common errors like connection refused, SSL errors, etc.
+        except Exception as exc_gen:
+            # logger.debug(f"Generic Exception for {url_probe}: {exc_gen}")
+            pass
+    return item_to_check, False, None # If all probes fail
 
 async def get_liveness_async(items: set[str], is_url_check: bool = False) -> list[tuple[str, bool, int | None]]:
     live_results = []
+    # Adjusted limits for potentially many items
     limits = httpx.Limits(max_connections=50, max_keepalive_connections=10)
-    async with httpx.AsyncClient(limits=limits, verify=False) as client:
+    async with httpx.AsyncClient(limits=limits, verify=False) as client: # verify=False for self-signed certs etc.
         tasks = [_check_item_liveness(item, client, is_url_check) for item in items]
         results = await asyncio.gather(*tasks)
         for item, is_alive, status_code in results:
             live_results.append((item, is_alive, status_code))
     return live_results
 
-def run_recon_workflow(target_domain: str, output_path: str = "./scan_results") -> dict:
-    print(f"[INFO] Starting comprehensive recon workflow for: {target_domain}")
+# Added scan_id parameter
+def run_recon_workflow(target_domain: str, scan_id: str, output_path: str = "./scan_results") -> dict:
+    logger.info(f"[{target_domain} - {scan_id}] Starting comprehensive recon workflow")
     domain_output_path = os.path.join(output_path, target_domain)
     os.makedirs(domain_output_path, exist_ok=True)
-    print(f"[INFO] Output will be saved in: {domain_output_path}")
+    logger.info(f"[{target_domain} - {scan_id}] Output will be saved in: {domain_output_path}")
+
+    base_output_dir = domain_output_path # For clarity when passing to sub-modules
 
     # Define all output file paths at the beginning
-    all_subdomains_file = os.path.join(domain_output_path, "Subdomain.txt")
-    subdomains_alive_file = os.path.join(domain_output_path, "subdomains_alive.txt")
-    subdomains_dead_file = os.path.join(domain_output_path, "subdomains_dead.txt")
-    way_kat_file = os.path.join(domain_output_path, "Way_kat.txt")
-    urls_alive_file = os.path.join(domain_output_path, "alive_domain.txt")
-    urls_dead_file = os.path.join(domain_output_path, "dead_domain.txt")
-    dns_resolutions_file = os.path.join(domain_output_path, "subdomain_dns_resolutions.json")
-    subdomain_takeover_file = os.path.join(domain_output_path, "subdomain_takeover_vulnerable.txt")
-    interesting_params_file = os.path.join(domain_output_path, "interesting_params.txt")
-    xss_results_file = os.path.join(domain_output_path, "xss_vulnerabilities.json")
-    sqli_results_file = os.path.join(domain_output_path, "sqli_vulnerabilities.json")
-    lfi_results_file = os.path.join(domain_output_path, "lfi_vulnerabilities.json")
-    cors_results_file = os.path.join(domain_output_path, "cors_vulnerabilities.json")
-    sensitive_data_findings_file = os.path.join(domain_output_path, "sensitive_data_findings.json")
-    ssrf_results_file = os.path.join(domain_output_path, "ssrf_vulnerabilities.json")
-    xxe_results_file = os.path.join(domain_output_path, "xxe_vulnerabilities.json")
-    rce_results_file = os.path.join(domain_output_path, "rce_vulnerabilities.json")
+    all_subdomains_file = os.path.join(base_output_dir, "Subdomain.txt")
+    subdomains_alive_file = os.path.join(base_output_dir, "subdomains_alive.txt")
+    subdomains_dead_file = os.path.join(base_output_dir, "subdomains_dead.txt")
+    way_kat_file = os.path.join(base_output_dir, "Way_kat.txt")
+    urls_alive_file = os.path.join(base_output_dir, "alive_domain.txt")
+    urls_dead_file = os.path.join(base_output_dir, "dead_domain.txt")
+    dns_resolutions_file = os.path.join(base_output_dir, "subdomain_dns_resolutions.json")
+    subdomain_takeover_file = os.path.join(base_output_dir, "subdomain_takeover_vulnerable.txt")
+    interesting_params_file = os.path.join(base_output_dir, "interesting_params.txt")
 
-    wildcard_file = os.path.join(domain_output_path, "wildcard_domains.txt")
-    metadata_file = os.path.join(domain_output_path, "subdomain_technologies.json")
+    # Vulnerability module output files (as per PARSER_MAPPING in aggregator)
+    xss_results_file = os.path.join(base_output_dir, "xss_vulnerabilities.json")
+    sqli_results_file = os.path.join(base_output_dir, "sqli_vulnerabilities.json")
+    lfi_results_file = os.path.join(base_output_dir, "lfi_vulnerabilities.json") # or lfi_findings.json
+    cors_results_file = os.path.join(base_output_dir, "cors_vulnerabilities.json") # or cors_misconfig.json
+    sensitive_data_findings_file = os.path.join(base_output_dir, "sensitive_data_findings.json")
+    ssrf_results_file = os.path.join(base_output_dir, "ssrf_vulnerabilities.json")
+    xxe_results_file = os.path.join(base_output_dir, "xxe_vulnerabilities.json")
+    rce_results_file = os.path.join(base_output_dir, "rce_vulnerabilities.json")
+    aggregated_vulnerabilities_file = os.path.join(base_output_dir, "aggregated_vulnerabilities.json")
 
-    print("\n--- Running Subdomain Enumeration Tools ---")
+
+    wildcard_file = os.path.join(base_output_dir, "wildcard_domains.txt") # Currently not actively generated, placeholder
+    metadata_file = os.path.join(base_output_dir, "subdomain_technologies.json") # Placeholder for tech stack
+
+    results_summary = { # Initialize results summary for API
+        "target_domain": target_domain,
+        "all_subdomains_file": all_subdomains_file, "dns_resolutions_file": dns_resolutions_file,
+        "subdomains_alive_file": subdomains_alive_file, "subdomains_dead_file": subdomains_dead_file,
+        "takeover_vulnerable_file": subdomain_takeover_file, "way_kat_file": way_kat_file,
+        "interesting_params_file": interesting_params_file, "urls_alive_file": urls_alive_file,
+        "urls_dead_file": urls_dead_file,
+        "sensitive_data_findings_file": sensitive_data_findings_file,
+        "xss_results_file": xss_results_file, "sqli_results_file": sqli_results_file,
+        "lfi_results_file": lfi_results_file, "cors_results_file": cors_results_file,
+        "ssrf_results_file": ssrf_results_file, "xxe_results_file": xxe_results_file,
+        "rce_results_file": rce_results_file,
+        "aggregated_vulnerabilities_file": aggregated_vulnerabilities_file, # Add this
+        "wildcard_domains_file": wildcard_file, "metadata_file": metadata_file
+    }
+
+
+    logger.info(f"[{target_domain} - {scan_id}] --- Running Subdomain Enumeration Tools ---")
     all_discovered_subdomains = set()
-    with tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir: # Ensure temp_dir is used by tools needing it
         all_discovered_subdomains.update(run_subfinder(target_domain))
-        all_discovered_subdomains.update(run_sublist3r(target_domain, temp_dir))
+        all_discovered_subdomains.update(run_sublist3r(target_domain, temp_dir)) # Pass temp_dir
         all_discovered_subdomains.update(run_amass(target_domain))
         all_discovered_subdomains.update(run_assetfinder(target_domain))
 
-    def create_placeholders_for_early_exit(reason_message: str):
-        files_with_json_content_map = {
-            dns_resolutions_file: {},
-            xss_results_file: {"notes": f"XSS hunting skipped: {reason_message}", "vulnerabilities": []},
-            sqli_results_file: {"notes": f"SQLi scanning skipped: {reason_message}", "vulnerabilities": []},
-            lfi_results_file: {"notes": f"LFI hunting skipped: {reason_message}", "vulnerabilities": []},
-            cors_results_file: {"notes": f"CORS scanning skipped: {reason_message}", "vulnerabilities": []},
-            sensitive_data_findings_file: {"notes": f"Sensitive Data Exposure hunting skipped: {reason_message}", "vulnerabilities": []},
-            ssrf_results_file: {"notes": f"SSRF scanning skipped: {reason_message}", "vulnerabilities": []},
-            xxe_results_file: {"notes": f"XXE scanning skipped: {reason_message}", "vulnerabilities": []},
-            rce_results_file: {"notes": f"RCE scanning skipped: {reason_message}", "vulnerabilities": []}
-        }
-        files_with_text_content_map = {
-            subdomain_takeover_file: f"# Subdomain takeover check skipped: {reason_message}\n",
-            interesting_params_file: f"# Parameter extraction skipped: {reason_message}\n",
-        }
-        list_based_files = [all_subdomains_file, subdomains_alive_file, subdomains_dead_file, way_kat_file, urls_alive_file, urls_dead_file, wildcard_file]
+    def create_placeholders_for_early_exit(reason_message: str, current_results_summary: dict):
+        # Ensure all expected files are touched or created with placeholder content
+        # This helps prevent "file not found" when API tries to list results.
+        logger.warning(f"[{target_domain} - {scan_id}] Early exit from workflow: {reason_message}")
 
-        all_placeholder_files_to_touch = list(files_with_json_content_map.keys()) + \
-                                         list(files_with_text_content_map.keys()) + \
-                                         list_based_files + [metadata_file]
+        # Update status in summary
+        current_results_summary["status"] = f"completed_early_exit:_{reason_message.lower().replace(' ', '_').replace('.', '')}"
 
-        for f_path in all_placeholder_files_to_touch:
+        # Define expected JSON output files and their placeholder content
+        json_placeholder_content = {"notes": f"Scanning skipped: {reason_message}", "vulnerabilities": []}
+        expected_json_files = [
+            dns_resolutions_file, xss_results_file, sqli_results_file, lfi_results_file,
+            cors_results_file, sensitive_data_findings_file, ssrf_results_file,
+            xxe_results_file, rce_results_file,
+            metadata_file # metadata is also JSON
+            # aggregated_vulnerabilities_file handled separately below
+        ]
+        for f_path in expected_json_files:
             if not os.path.exists(f_path):
                 try:
-                    if f_path in files_with_json_content_map:
-                        with open(f_path, 'w') as f: json.dump(files_with_json_content_map[f_path], f, indent=4)
-                    elif f_path in files_with_text_content_map:
-                        with open(f_path, 'w') as f: f.write(files_with_text_content_map[f_path])
-                    elif f_path == metadata_file:
-                         with open(f_path, "w") as f: f.write("{}")
-                    else:
-                        open(f_path, 'w').close()
+                    content_to_write = json_placeholder_content
+                    if f_path == dns_resolutions_file or f_path == metadata_file:
+                        content_to_write = {} # Empty dict for these
+                    with open(f_path, 'w') as f: json.dump(content_to_write, f, indent=2)
                 except Exception as e:
-                     print(f"[ERROR] Could not create placeholder file {f_path}: {e}")
+                     logger.error(f"Could not create placeholder JSON file {f_path}: {e}")
+
+        # Specifically for aggregated_vulnerabilities_file, it should be an empty list on early exit
+        if not os.path.exists(aggregated_vulnerabilities_file):
+            try:
+                with open(aggregated_vulnerabilities_file, 'w') as f: json.dump([], f, indent=2)
+            except Exception as e:
+                logger.error(f"Could not create placeholder aggregated_vulnerabilities_file: {e}")
+
+        # Define expected text output files and their placeholder content
+        text_placeholder_content = f"# Scanning skipped: {reason_message}\n"
+        expected_text_files = [
+            subdomain_takeover_file, interesting_params_file, all_subdomains_file,
+            subdomains_alive_file, subdomains_dead_file, way_kat_file,
+            urls_alive_file, urls_dead_file, wildcard_file
+        ]
+        for f_path in expected_text_files:
+            if not os.path.exists(f_path):
+                try:
+                    with open(f_path, 'w') as f: f.write(text_placeholder_content)
+                except Exception as e:
+                     logger.error(f"Could not create placeholder text file {f_path}: {e}")
+        return current_results_summary
+
 
     if not all_discovered_subdomains:
-        print(f"[WARNING] No subdomains found by any tool for {target_domain}.")
-        create_placeholders_for_early_exit("No subdomains found.")
-        return {
-            "target_domain": target_domain, "status": "completed_no_subdomains_found_by_any_tool",
-            "all_subdomains_file": all_subdomains_file, "dns_resolutions_file": dns_resolutions_file,
-            "subdomains_alive_file": subdomains_alive_file, "subdomains_dead_file": subdomains_dead_file,
-            "takeover_vulnerable_file": subdomain_takeover_file, "way_kat_file": way_kat_file,
-            "interesting_params_file": interesting_params_file, "urls_alive_file": urls_alive_file,
-            "urls_dead_file": urls_dead_file, "sensitive_data_findings_file": sensitive_data_findings_file,
-            "xss_results_file": xss_results_file, "sqli_results_file": sqli_results_file,
-            "lfi_results_file": lfi_results_file, "cors_results_file": cors_results_file,
-            "ssrf_results_file": ssrf_results_file, "xxe_results_file": xxe_results_file,
-            "rce_results_file": rce_results_file,
-            "wildcard_domains_file": wildcard_file, "metadata_file": metadata_file
-        }
+        logger.warning(f"[{target_domain} - {scan_id}] No subdomains found by any tool.")
+        return create_placeholders_for_early_exit("No subdomains found by any tool", results_summary)
 
     sorted_subdomains = sorted(list(all_discovered_subdomains))
     with open(all_subdomains_file, "w") as f:
         for sub in sorted_subdomains: f.write(sub + "\n")
-    print(f"[INFO] Consolidated {len(sorted_subdomains)} unique subdomains to {all_subdomains_file}")
+    logger.info(f"[{target_domain} - {scan_id}] Consolidated {len(sorted_subdomains)} unique subdomains to {all_subdomains_file}")
 
-    print("\n--- Performing DNS Resolution for Discovered Subdomains ---")
+    logger.info(f"[{target_domain} - {scan_id}] --- Performing DNS Resolution for Discovered Subdomains ---")
     dns_data = {}
-    import socket
+    import socket # Keep import local if only used here
     for sub_idx, subdomain_to_resolve in enumerate(sorted_subdomains):
-        if sub_idx > 0 and sub_idx % 100 == 0: print(f"[DNS] Resolved {sub_idx}/{len(sorted_subdomains)} subdomains...")
+        if sub_idx > 0 and sub_idx % 100 == 0: logger.info(f"[DNS - {scan_id}] Resolved {sub_idx}/{len(sorted_subdomains)} subdomains...")
         try:
+            # Using gethostbyname_ex for potentially multiple IPs, though getaddrinfo is more modern
             _, _, ipaddrlist = socket.gethostbyname_ex(subdomain_to_resolve)
             dns_data[subdomain_to_resolve] = ipaddrlist if ipaddrlist else ["NXDOMAIN or No A/AAAA record"]
-        except socket.gaierror: dns_data[subdomain_to_resolve] = ["ResolutionFailed"]
-        except Exception as e: dns_data[subdomain_to_resolve] = [f"Error: {str(e)}"]; print(f"[DNS ERROR] for {subdomain_to_resolve}: {e}")
-    with open(dns_resolutions_file, "w") as f_dns: json.dump(dns_data, f_dns, indent=4)
-    print(f"[INFO] DNS resolution data saved to {dns_resolutions_file}")
+        except socket.gaierror: dns_data[subdomain_to_resolve] = ["ResolutionFailed_GAIError"]
+        except Exception as e: dns_data[subdomain_to_resolve] = [f"Error: {str(e)}"]; logger.error(f"[DNS ERROR - {scan_id}] for {subdomain_to_resolve}: {e}")
+    with open(dns_resolutions_file, "w") as f_dns: json.dump(dns_data, f_dns, indent=2)
+    logger.info(f"[{target_domain} - {scan_id}] DNS resolution data saved to {dns_resolutions_file}")
 
-    print("\n--- Checking Subdomain Liveness ---")
+    logger.info(f"[{target_domain} - {scan_id}] --- Checking Subdomain Liveness ---")
     subdomain_liveness_results = asyncio.run(get_liveness_async(all_discovered_subdomains, is_url_check=False))
     live_subs_list, dead_subs_list = [], []
     for sub, is_alive, _ in subdomain_liveness_results: (live_subs_list if is_alive else dead_subs_list).append(sub)
     with open(subdomains_alive_file, "w") as f:
         for sub in sorted(live_subs_list): f.write(sub + "\n")
-    print(f"[INFO] Found {len(live_subs_list)} live subdomains. Saved to {subdomains_alive_file}")
+    logger.info(f"[{target_domain} - {scan_id}] Found {len(live_subs_list)} live subdomains. Saved to {subdomains_alive_file}")
     with open(subdomains_dead_file, "w") as f:
         for sub in sorted(dead_subs_list): f.write(sub + "\n")
-    print(f"[INFO] Found {len(dead_subs_list)} dead subdomains. Saved to {subdomains_dead_file}")
+    logger.info(f"[{target_domain} - {scan_id}] Found {len(dead_subs_list)} dead subdomains. Saved to {subdomains_dead_file}")
 
-    print("\n--- Running Subdomain Takeover Check (Subzy) ---")
+    logger.info(f"[{target_domain} - {scan_id}] --- Running Subdomain Takeover Check (Subzy) ---")
     run_subzy_takeover_check(subdomains_alive_file, subdomain_takeover_file, target_domain)
 
     if not live_subs_list:
-        print("[WARNING] No live subdomains found. Subsequent URL-based steps will be skipped.")
-        create_placeholders_for_early_exit("No live subdomains.")
-        return {
-            "target_domain": target_domain, "status": "completed_no_live_subdomains",
-            "all_subdomains_file": all_subdomains_file, "dns_resolutions_file": dns_resolutions_file,
-            "subdomains_alive_file": subdomains_alive_file, "subdomains_dead_file": subdomains_dead_file,
-            "takeover_vulnerable_file": subdomain_takeover_file, "way_kat_file": way_kat_file,
-            "interesting_params_file": interesting_params_file, "urls_alive_file": urls_alive_file,
-            "urls_dead_file": urls_dead_file, "sensitive_data_findings_file": sensitive_data_findings_file,
-            "xss_results_file": xss_results_file, "sqli_results_file": sqli_results_file,
-            "lfi_results_file": lfi_results_file, "cors_results_file": cors_results_file,
-            "ssrf_results_file": ssrf_results_file, "xxe_results_file": xxe_results_file,
-            "rce_results_file": rce_results_file,
-            "wildcard_domains_file": wildcard_file, "metadata_file": metadata_file
-        }
+        logger.warning(f"[{target_domain} - {scan_id}] No live subdomains found. Subsequent URL-based steps will be skipped.")
+        return create_placeholders_for_early_exit("No live subdomains found", results_summary)
 
-    print("\n--- Running URL Discovery Tools ---")
+    logger.info(f"[{target_domain} - {scan_id}] --- Running URL Discovery Tools ---")
     all_discovered_urls = set()
+    # Limit URL discovery to a subset of live subdomains if too many, to manage time.
+    # For now, processing all.
     for live_sub in live_subs_list:
-        print(f"[INFO] Discovering URLs for live subdomain: {live_sub}")
+        logger.info(f"Discovering URLs for live subdomain: {live_sub} [{scan_id}]")
         all_discovered_urls.update(run_waybackurls(live_sub))
         all_discovered_urls.update(run_katana(live_sub))
         all_discovered_urls.update(run_gau(live_sub))
         all_discovered_urls.update(run_hakrawler(live_sub))
 
     cleaned_urls, final_urls_for_waykat = set(), set()
-    for url in all_discovered_urls:
-        cleaned_urls.add(f"https://{url}" if not url.startswith(('http://', 'https://')) else url)
+    for url in all_discovered_urls: # Normalize and clean URLs
+        # Ensure scheme, handle potential // issues from tools
+        url = url.strip()
+        if not url.startswith(('http://', 'https://')):
+            url = f"https://{url}" # Default to https
+        cleaned_urls.add(url)
+
     excluded_extensions = {'.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.woff', '.woff2', '.ttf', '.eot', '.ico', '.map', '.jsonld'}
-    for url in cleaned_urls:
+    for url in cleaned_urls: # Filter out common non-content types
         try:
-            if not any(urlparse(url).path.lower().endswith(ext) for ext in excluded_extensions): final_urls_for_waykat.add(url)
-        except: continue
+            if not any(urlparse(url).path.lower().endswith(ext) for ext in excluded_extensions):
+                final_urls_for_waykat.add(url)
+        except: continue # Skip malformed URLs
     sorted_urls = sorted(list(final_urls_for_waykat))
     with open(way_kat_file, "w") as f:
         for url_item in sorted_urls: f.write(url_item + "\n")
-    print(f"[INFO] Discovered {len(sorted_urls)} unique URLs (after filtering). Saved to {way_kat_file}")
+    logger.info(f"[{target_domain} - {scan_id}] Discovered {len(sorted_urls)} unique URLs (after filtering). Saved to {way_kat_file}")
 
     if not sorted_urls:
-        print("[WARNING] No URLs found by any discovery tool or all were filtered. Subsequent URL-based steps will be skipped.")
-        create_placeholders_for_early_exit("No URLs discovered/all filtered.")
-        return {
-            "target_domain": target_domain, "status": "completed_no_urls_discovered",
-             "all_subdomains_file": all_subdomains_file, "dns_resolutions_file": dns_resolutions_file,
-            "subdomains_alive_file": subdomains_alive_file, "subdomains_dead_file": subdomains_dead_file,
-            "takeover_vulnerable_file": subdomain_takeover_file, "way_kat_file": way_kat_file,
-            "interesting_params_file": interesting_params_file, "urls_alive_file": urls_alive_file,
-            "urls_dead_file": urls_dead_file, "sensitive_data_findings_file": sensitive_data_findings_file,
-            "xss_results_file": xss_results_file, "sqli_results_file": sqli_results_file,
-            "lfi_results_file": lfi_results_file, "cors_results_file": cors_results_file,
-            "ssrf_results_file": ssrf_results_file, "xxe_results_file": xxe_results_file,
-            "rce_results_file": rce_results_file,
-            "wildcard_domains_file": wildcard_file, "metadata_file": metadata_file
-        }
+        logger.warning(f"[{target_domain} - {scan_id}] No URLs found by any discovery tool or all were filtered. Subsequent URL-based steps will be skipped.")
+        return create_placeholders_for_early_exit("No URLs discovered or all filtered", results_summary)
 
-    print("\n--- Extracting Parameters from Discovered URLs ---")
+    logger.info(f"[{target_domain} - {scan_id}] --- Extracting Parameters from Discovered URLs ---")
     extract_parameters_from_urls(way_kat_file, interesting_params_file)
 
-    print("\n--- Filtering URLs (Checking Liveness & Status Codes) ---")
+    logger.info(f"[{target_domain} - {scan_id}] --- Filtering URLs (Checking Liveness & Status Codes) ---")
     url_liveness_results = asyncio.run(get_liveness_async(final_urls_for_waykat, is_url_check=True))
-    live_urls_list, dead_urls_list = [], []
+    live_urls_list, dead_urls_list = [], [] # live = 2xx/3xx, dead = 4xx/5xx or request failed
     for url, request_succeeded, status_code in url_liveness_results:
         if request_succeeded and status_code is not None:
             if 200 <= status_code < 400: live_urls_list.append(url)
             elif 400 <= status_code < 600: dead_urls_list.append(f"{url} [{status_code}]")
-        else: dead_urls_list.append(f"{url} [Request Failed]")
+            # else: consider what to do with other codes, for now they are implicitly 'dead' for scanning
+        else: dead_urls_list.append(f"{url} [Request Failed/No Response]")
     with open(urls_alive_file, "w") as f:
         for url_item in sorted(live_urls_list): f.write(url_item + "\n")
-    print(f"[INFO] Found {len(live_urls_list)} live URLs (200s/30xs). Saved to {urls_alive_file}")
+    logger.info(f"[{target_domain} - {scan_id}] Found {len(live_urls_list)} live URLs (200s/30xs). Saved to {urls_alive_file}")
     with open(urls_dead_file, "w") as f:
         for url_status in sorted(dead_urls_list): f.write(url_status + "\n")
-    print(f"[INFO] Found {len(dead_urls_list)} dead/error URLs. Saved to {urls_dead_file}")
+    logger.info(f"[{target_domain} - {scan_id}] Found {len(dead_urls_list)} dead/error URLs. Saved to {urls_dead_file}")
 
-    # --- Placeholder Vulnerability Scanners ---
+    # --- Vulnerability Scanning Modules ---
+    # Ensure imports are correct based on file structure relative to THIS file
+    # These modules are in ../<module_name>/main.py
+    from ..xss_hunter.main import hunt_xss
+    from ..sqli_scanner.main import scan_for_sqli
+    from ..lfi_hunter.main import hunt_for_lfi
+    from ..cors_hunter.main import hunt_for_cors_issues
+    from ..sensitive_data_hunter.main import hunt_for_sensitive_data
+    from ..ssrf_hunter.main import hunt_for_ssrf
+    from ..xxe_hunter.main import hunt_for_xxe
+    from ..rce_hunter.main import hunt_for_rce
+
+    # Import the aggregator. Assuming 'ch_modules' is in PYTHONPATH or accessible.
+    # This might need adjustment based on how the main API server runs this workflow.
+    # If cyberhunter3d/ is the root of the package, then this is not directly relative.
+    # This is a common Python packaging challenge.
+    # For now, let's try a direct import assuming PYTHONPATH is set up one level above 'ch_modules' (project root)
+    # OR that this file is run from a context where 'ch_modules' is a top-level package.
+    try:
+        from ch_modules.vulnerability_aggregator.main import aggregate_and_deduplicate_vulnerabilities
+    except ModuleNotFoundError:
+        logger.error(f"[{target_domain} - {scan_id}] Could not import vulnerability_aggregator. Ensure 'ch_modules' is in PYTHONPATH or structure is correct.")
+        # Fallback or raise error - for now, log and continue without aggregation
+        aggregate_and_deduplicate_vulnerabilities = None
+
+
     scan_input_valid = os.path.exists(urls_alive_file) and os.path.getsize(urls_alive_file) > 0
 
-    # XSS Hunter
-    print("\n--- Running XSS Hunter (Placeholder) ---" if scan_input_valid else "[INFO] Skipping XSS Hunter: No live URLs.")
-    try:
-        from ..xss_hunter.main import hunt_xss
-        xss_scan_results = hunt_xss(urls_alive_file if scan_input_valid else "", domain_output_path)
-        xss_results_file = xss_scan_results.get("xss_results_file", xss_results_file)
-    except Exception as e:
-        print(f"[ERROR] XSS Hunter call failed: {e}")
-        if not os.path.exists(xss_results_file):
-            with open(xss_results_file,"w") as f: json.dump({"notes": f"XSS scan error: {e}", "vulnerabilities":[]}, f, indent=4)
-
-    # SQLi Scanner
-    print("\n--- Running SQLi Scanner (Placeholder) ---" if scan_input_valid else "[INFO] Skipping SQLi Scanner: No live URLs.")
-    try:
-        from ..sqli_scanner.main import scan_for_sqli
-        sqli_scan_results = scan_for_sqli(urls_alive_file if scan_input_valid else "", interesting_params_file, domain_output_path)
-        sqli_results_file = sqli_scan_results.get("sqli_results_file", sqli_results_file)
-    except Exception as e:
-        print(f"[ERROR] SQLi Scanner call failed: {e}")
-        if not os.path.exists(sqli_results_file):
-             with open(sqli_results_file,"w") as f: json.dump({"notes": f"SQLi scan error: {e}", "vulnerabilities":[]},f, indent=4)
-
-    # LFI Hunter
-    print("\n--- Running LFI Hunter (Placeholder) ---" if scan_input_valid else "[INFO] Skipping LFI Hunter: No live URLs.")
-    try:
-        from ..lfi_hunter.main import hunt_for_lfi
-        lfi_scan_results = hunt_for_lfi(urls_alive_file if scan_input_valid else "", interesting_params_file, domain_output_path)
-        lfi_results_file = lfi_scan_results.get("lfi_results_file", lfi_results_file)
-    except Exception as e:
-        print(f"[ERROR] LFI Hunter call failed: {e}")
-        if not os.path.exists(lfi_results_file):
-            with open(lfi_results_file,"w") as f: json.dump({"notes": f"LFI scan error: {e}", "vulnerabilities":[]},f, indent=4)
-
-    # CORS Hunter
-    print("\n--- Running CORS Hunter (Placeholder) ---" if scan_input_valid else "[INFO] Skipping CORS Hunter: No live URLs.")
-    try:
-        from ..cors_hunter.main import hunt_for_cors_issues
-        main_root_domain = urlparse(f"http://{target_domain}").netloc
-        cors_scan_results = hunt_for_cors_issues(urls_alive_file if scan_input_valid else "", main_root_domain, domain_output_path)
-        cors_results_file = cors_scan_results.get("cors_results_file", cors_results_file)
-    except Exception as e:
-        print(f"[ERROR] CORS Hunter call failed: {e}")
-        if not os.path.exists(cors_results_file):
-            with open(cors_results_file,"w") as f: json.dump({"notes": f"CORS scan error: {e}", "vulnerabilities":[]},f, indent=4)
-
-    # Sensitive Data Exposure Hunter
-    sde_input_valid = (os.path.exists(urls_alive_file) and os.path.getsize(urls_alive_file) > 0) or \
-                      (os.path.exists(subdomains_alive_file) and os.path.getsize(subdomains_alive_file) > 0)
-    print("\n--- Running Sensitive Data Exposure Hunter (Placeholder) ---" if sde_input_valid else "[INFO] Skipping SDE Hunter: No live URLs or subdomains.")
-    try:
-        from ..sensitive_data_hunter.main import hunt_for_sensitive_data
-        sde_scan_results = hunt_for_sensitive_data(
+    module_runners = [
+        ("XSS Hunter", hunt_xss, [urls_alive_file if scan_input_valid else "", base_output_dir], xss_results_file, "xss_results_file"),
+        ("SQLi Scanner", scan_for_sqli, [urls_alive_file if scan_input_valid else "", interesting_params_file, base_output_dir], sqli_results_file, "sqli_results_file"),
+        ("LFI Hunter", hunt_for_lfi, [urls_alive_file if scan_input_valid else "", interesting_params_file, base_output_dir], lfi_results_file, "lfi_results_file"),
+        ("CORS Hunter", hunt_for_cors_issues, [urls_alive_file if scan_input_valid else "", urlparse(f"http://{target_domain}").netloc, base_output_dir], cors_results_file, "cors_results_file"),
+        ("Sensitive Data Hunter", hunt_for_sensitive_data, [
             urls_alive_file if (os.path.exists(urls_alive_file) and os.path.getsize(urls_alive_file) > 0) else "",
             subdomains_alive_file if (os.path.exists(subdomains_alive_file) and os.path.getsize(subdomains_alive_file) > 0) else "",
-            domain_output_path
-        )
-        sensitive_data_findings_file = sde_scan_results.get("sensitive_data_results_file", sensitive_data_findings_file)
-    except Exception as e:
-        print(f"[ERROR] SDE Hunter call failed: {e}")
-        if not os.path.exists(sensitive_data_findings_file):
-            with open(sensitive_data_findings_file,"w") as f_sde_err:
-                json.dump({"notes": f"SDE scan error: {e}", "vulnerabilities":[]}, f_sde_err, indent=4)
+            base_output_dir
+        ], sensitive_data_findings_file, "sensitive_data_results_file"), # Note key diff
+        ("SSRF Hunter", hunt_for_ssrf, [urls_alive_file if scan_input_valid else "", interesting_params_file, base_output_dir], ssrf_results_file, "ssrf_results_file"),
+        ("XXE Hunter", hunt_for_xxe, [urls_alive_file if scan_input_valid else "", base_output_dir], xxe_results_file, "xxe_results_file"),
+        ("RCE Hunter", hunt_for_rce, [urls_alive_file if scan_input_valid else "", interesting_params_file, base_output_dir], rce_results_file, "rce_results_file"),
+    ]
 
-    # SSRF Hunter
-    print("\n--- Running SSRF Hunter (Placeholder) ---" if scan_input_valid else "[INFO] Skipping SSRF Hunter: No live URLs.")
-    try:
-        from ..ssrf_hunter.main import hunt_for_ssrf
-        ssrf_scan_results = hunt_for_ssrf(urls_alive_file if scan_input_valid else "", interesting_params_file, domain_output_path)
-        ssrf_results_file = ssrf_scan_results.get("ssrf_results_file", ssrf_results_file)
-    except Exception as e:
-        print(f"[ERROR] SSRF Hunter call failed: {e}")
-        if not os.path.exists(ssrf_results_file):
-            with open(ssrf_results_file, "w") as f: json.dump({"notes": f"SSRF scan error: {e}", "vulnerabilities": []}, f, indent=4)
+    for name, func, args, default_out_file, result_key in module_runners:
+        is_sde = name == "Sensitive Data Hunter"
+        current_input_valid = (os.path.exists(args[0]) and os.path.getsize(args[0]) > 0) if not is_sde else \
+                              ((os.path.exists(args[0]) and os.path.getsize(args[0]) > 0) or \
+                               (os.path.exists(args[1]) and os.path.getsize(args[1]) > 0))
 
-    # XXE Hunter
-    print("\n--- Running XXE Hunter (Placeholder) ---" if scan_input_valid else "[INFO] Skipping XXE Hunter: No live URLs.")
-    try:
-        from ..xxe_hunter.main import hunt_for_xxe
-        xxe_scan_results = hunt_for_xxe(urls_alive_file if scan_input_valid else "", domain_output_path)
-        xxe_results_file = xxe_scan_results.get("xxe_results_file", xxe_results_file)
-    except Exception as e:
-        print(f"[ERROR] XXE Hunter call failed: {e}")
-        if not os.path.exists(xxe_results_file):
-            with open(xxe_results_file,"w") as f: json.dump({"notes": f"XXE scan error: {e}", "vulnerabilities":[]}, f, indent=4)
+        logger.info(f"--- Running {name} (Placeholder) ---" if current_input_valid else f"[INFO] Skipping {name}: No valid input.")
+        if not current_input_valid: # Create placeholder if skipped
+             if not os.path.exists(default_out_file):
+                with open(default_out_file, "w") as f: json.dump({"notes": f"{name} skipped: No valid input.", "vulnerabilities":[]}, f, indent=2)
+             continue
+        try:
+            scan_results = func(*args) # Call the module's main function
+            # Update results_summary with the actual output file path from the module if it differs
+            # The key in scan_results (e.g. "xss_results_file") should match default_out_file's purpose
+            actual_output_file = scan_results.get(result_key, default_out_file)
+            results_summary[os.path.basename(default_out_file).replace("_vulnerabilities.json","").replace("_findings.json","") + "_results_file"] = actual_output_file
+            logger.info(f"[{target_domain} - {scan_id}] {name} placeholder finished. Results: {actual_output_file}")
+        except Exception as e:
+            logger.error(f"[{target_domain} - {scan_id}] {name} call failed: {e}", exc_info=True)
+            if not os.path.exists(default_out_file): # Ensure placeholder on error
+                with open(default_out_file, "w") as f: json.dump({"notes": f"{name} scan error: {e}", "vulnerabilities":[]}, f, indent=2)
+            results_summary[os.path.basename(default_out_file).replace("_vulnerabilities.json","").replace("_findings.json","") + "_results_file"] = default_out_file # Point to placeholder
 
-    # RCE Hunter
-    print("\n--- Running RCE Hunter (Placeholder) ---" if scan_input_valid else "[INFO] Skipping RCE Hunter: No live URLs.")
-    try:
-        from ..rce_hunter.main import hunt_for_rce
-        rce_scan_results = hunt_for_rce(urls_alive_file if scan_input_valid else "", interesting_params_file, domain_output_path)
-        rce_results_file = rce_scan_results.get("rce_results_file", rce_results_file)
-    except Exception as e:
-        print(f"[ERROR] RCE Hunter call failed: {e}")
-        if not os.path.exists(rce_results_file):
-            with open(rce_results_file, "w") as f: json.dump({"notes": f"RCE scan error: {e}", "vulnerabilities":[]}, f, indent=4)
+    # PHASE 18: Vulnerability Aggregation and Deduplication
+    if aggregate_and_deduplicate_vulnerabilities:
+        logger.info(f"[{target_domain} - {scan_id}] Starting Vulnerability Aggregation...")
+        try:
+            agg_output_file = aggregate_and_deduplicate_vulnerabilities(base_output_dir, scan_id)
+            if agg_output_file:
+                results_summary["aggregated_vulnerabilities_file"] = agg_output_file
+                logger.info(f"[{target_domain} - {scan_id}] Vulnerability Aggregation completed. Results: {agg_output_file}")
+            else:
+                logger.error(f"[{target_domain} - {scan_id}] Vulnerability Aggregation failed or produced no output file.")
+                results_summary["aggregation_error"] = "Aggregation failed or no output."
+                if not os.path.exists(aggregated_vulnerabilities_file): # Create placeholder
+                     with open(aggregated_vulnerabilities_file, "w") as f: json.dump({"notes": "Aggregation failed.", "vulnerabilities":[]}, f, indent=2)
+                results_summary["aggregated_vulnerabilities_file"] = aggregated_vulnerabilities_file
 
 
+        except Exception as e:
+            logger.error(f"[{target_domain} - {scan_id}] Exception during Vulnerability Aggregation: {e}", exc_info=True)
+            results_summary["aggregation_error"] = str(e)
+            if not os.path.exists(aggregated_vulnerabilities_file): # Create placeholder
+                with open(aggregated_vulnerabilities_file, "w") as f: json.dump({"notes": f"Aggregation exception: {e}", "vulnerabilities":[]}, f, indent=2)
+            results_summary["aggregated_vulnerabilities_file"] = aggregated_vulnerabilities_file
+    else:
+        logger.warning(f"[{target_domain} - {scan_id}] Vulnerability aggregator not available. Skipping aggregation.")
+        if not os.path.exists(aggregated_vulnerabilities_file): # Create placeholder
+            with open(aggregated_vulnerabilities_file, "w") as f: json.dump({"notes": "Aggregator not available.", "vulnerabilities":[]}, f, indent=2)
+        results_summary["aggregated_vulnerabilities_file"] = aggregated_vulnerabilities_file
+
+
+    # Ensure final placeholder files for any non-generated optional files
     for f_path_final in [wildcard_file]:
-        if not os.path.exists(f_path_final): open(f_path_final, 'w').close()
-    if not os.path.exists(metadata_file):
-        with open(metadata_file, "w") as f: f.write("{}")
+        if not os.path.exists(f_path_final): open(f_path_final, 'w').write("# Not generated in this scan.\n")
+    if not os.path.exists(metadata_file): # Tech stack
+        with open(metadata_file, "w") as f: json.dump({}, f) # Empty JSON object
 
-    final_results = {
-        "target_domain": target_domain, "status": "completed_full_recon_flow",
-        "all_subdomains_file": all_subdomains_file, "dns_resolutions_file": dns_resolutions_file,
-        "subdomains_alive_file": subdomains_alive_file, "subdomains_dead_file": subdomains_dead_file,
-        "takeover_vulnerable_file": subdomain_takeover_file, "way_kat_file": way_kat_file,
-        "interesting_params_file": interesting_params_file, "urls_alive_file": urls_alive_file,
-        "urls_dead_file": urls_dead_file, "sensitive_data_findings_file": sensitive_data_findings_file,
-        "xss_results_file": xss_results_file, "sqli_results_file": sqli_results_file,
-        "lfi_results_file": lfi_results_file, "cors_results_file": cors_results_file,
-        "ssrf_results_file": ssrf_results_file, "xxe_results_file": xxe_results_file,
-        "rce_results_file": rce_results_file,
-        "wildcard_domains_file": wildcard_file, "metadata_file": metadata_file,
-    }
-    print(f"\n[SUCCESS] Comprehensive recon workflow completed for: {target_domain}")
-    return final_results
+    results_summary["status"] = "completed_full_scan_flow" # Final status
+    logger.info(f"\n[{target_domain} - {scan_id}] SUCCESS: Comprehensive recon and vulnerability scan workflow completed.")
+    return results_summary
+
 
 if __name__ == '__main__':
-    test_domain = "testphp.vulnweb.com"
-    output_dir = os.path.abspath("./temp_scan_results_comprehensive")
-    print(f"--- Running Comprehensive Recon Workflow for '{test_domain}' ---")
-    print(f"--- Output will be in: {output_dir}/{test_domain} ---")
-    workflow_output = run_recon_workflow(test_domain, output_path=output_dir)
-    print("\n--- Workflow Execution Summary ---")
-    for key, val in workflow_output.items(): print(f"  {key}: {val}")
-    print("\n--- Example commands to check some output files: ---")
+    # This basic __main__ is for direct testing of this script.
+    # The API (main_api.py) will call run_recon_workflow differently.
+    if len(os.sys.argv) > 1:
+        test_domain = os.sys.argv[1]
+        test_scan_id = f"cli_test_{test_domain.replace('.', '_')}"
+        output_dir_arg = os.sys.argv[2] if len(os.sys.argv) > 2 else "./temp_scan_results_comprehensive"
+    else:
+        test_domain = "testphp.vulnweb.com"
+        # test_domain = "example.com" # A domain less likely to have actual vulns for faster placeholder runs
+        test_scan_id = f"cli_test_{test_domain.replace('.', '_')}"
+        output_dir_arg = os.path.abspath("./temp_scan_results_comprehensive")
+
+    # Adjust PYTHONPATH for direct script execution if ch_modules (aggregator's parent) is not directly importable
+    # This is a common workaround for running scripts that are part of a larger package directly.
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_core_dir = os.path.dirname(os.path.dirname(script_dir)) # Up to 'cyberhunter3d/'
+    project_root_dir = os.path.dirname(project_core_dir) # Up to the actual project root that contains 'ch_modules' for aggregator
+
+    if project_root_dir not in os.sys.path:
+        logger.info(f"Adding {project_root_dir} to sys.path for aggregator import.")
+        os.sys.path.insert(0, project_root_dir)
+    if project_core_dir not in os.sys.path: # For relative imports like ..xss_hunter
+        logger.info(f"Adding {project_core_dir} to sys.path for relative module imports.")
+        os.sys.path.insert(0, project_core_dir)
+
+
+    logger.info(f"--- Running Comprehensive Recon Workflow for '{test_domain}' (Scan ID: {test_scan_id}) ---")
+    logger.info(f"--- Output will be in: {output_dir_arg}/{test_domain} ---")
+
+    workflow_output = run_recon_workflow(test_domain, test_scan_id, output_path=output_dir_arg)
+
+    logger.info("\n--- Workflow Execution Summary ---")
+    for key, val in workflow_output.items(): logger.info(f"  {key}: {val}")
+
+    logger.info("\n--- Example commands to check some output files: ---")
     for key, val in workflow_output.items():
-        if isinstance(val, str) and key.endswith("_file"): print(f"  cat \"{val}\"")
+        if isinstance(val, str) and key.endswith("_file") and os.path.exists(val):
+            logger.info(f"  cat \"{val}\"")
+        elif isinstance(val, str) and key.endswith("_file"):
+            logger.warning(f"  Output file listed but not found: {val}")

@@ -27,9 +27,14 @@ Initial project structure setup. The tool currently features a comprehensive rec
     - Enhanced Placeholder for Sensitive Data Exposure Hunting (structured for various checks).
     - Enhanced Placeholder for SSRF Hunting (structured for various checks).
     - Enhanced Placeholder for RCE Hunting (structured for command injection, OOB, eval fuzzing, etc.).
+- **Vulnerability Aggregation & Deduplication (`ch_modules/vulnerability_aggregator/`):**
+    - Collects findings from all vulnerability scanning modules.
+    - Normalizes data into a unified JSON schema.
+    - Deduplicates findings from different tools for the same vulnerability.
+    - Outputs `aggregated_vulnerabilities.json`.
 - **API (`ch_api/`):**
     - Flask-based server.
-    - Endpoints to start reconnaissance scans (now including SQLMap for SQLi and placeholders for LFI, CORS, Sensitive Data, SSRF, & RCE), check status, and retrieve results.
+    - Endpoints to start reconnaissance scans (including all vulnerability modules and final aggregation), check status, and retrieve results.
     - Asynchronous scan execution using `ThreadPoolExecutor`.
     - Persistent storage of scan jobs and results metadata using SQLite (`instance/scan_jobs.db`).
 - **Web Interface (Placeholder):**

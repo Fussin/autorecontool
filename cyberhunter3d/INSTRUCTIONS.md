@@ -131,6 +131,7 @@ The script will:
     *   `sensitive_data_findings.json`: Placeholder Sensitive Data Exposure scan results (currently mock, notes reflect conceptually considered checks for .git, API keys, backups, configs, etc.).
     *   `ssrf_vulnerabilities.json`: Placeholder SSRF scan results (currently mock, notes reflect conceptually considered checks like internal IP fuzzing, DNS callbacks, protocol smuggling, metadata abuse).
     *   `rce_vulnerabilities.json`: Placeholder RCE scan results (currently mock, notes reflect conceptually considered checks like command injection, OOB detection, eval fuzzing).
+    *   `aggregated_vulnerabilities.json`: Consolidated and deduplicated list of all findings from the vulnerability scanning modules, in a unified JSON format.
 
 ## 3. Running the API Server
 

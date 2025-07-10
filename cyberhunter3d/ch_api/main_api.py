@@ -10,10 +10,17 @@ import sys # For path manipulation
 
 def create_app():
     """Creates and configures the Flask application."""
+    print("[main_api.py] create_app() called.")
     # Explicitly set instance_path to be 'instance' directory at project root (one level up from ch_api)
     # app.root_path is the directory where main_api.py is (i.e., ch_api)
-    instance_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'instance'))
+    current_file_dir = os.path.dirname(__file__) # cyberhunter3d/ch_api
+    project_dir_containing_instance = os.path.abspath(os.path.join(current_file_dir, '..')) # cyberhunter3d/
+    instance_folder_path = os.path.join(project_dir_containing_instance, 'instance')
+
+    print(f"[main_api.py] Calculated instance_folder_path: {instance_folder_path}")
+
     app = Flask(__name__, instance_path=instance_folder_path)
+    print(f"[main_api.py] Flask app created. App instance path: {app.instance_path}")
 
     # Configuration (can be loaded from a config file or environment variables)
     app.config["DEBUG"] = True # Set to False in production
@@ -71,6 +78,13 @@ def create_app():
     # Import and register scan routes - already done above
     # from .routes import scan_routes
     # app.register_blueprint(scan_routes.scan_bp) # Assuming scan_bp is defined in scan_routes
+
+    # Initialize ThreadPoolExecutor for scans and attach to app
+    # This ensures it's created within app context and uses app config
+    from concurrent.futures import ThreadPoolExecutor
+    app.scan_executor = ThreadPoolExecutor(max_workers=app.config.get("SCAN_WORKERS", 2))
+    print(f"[main_api.py] Scan executor initialized with max_workers={app.scan_executor._max_workers}")
+
 
     return app
 
