@@ -130,6 +130,7 @@ The script will:
     *   `cors_vulnerabilities.json`: Placeholder CORS scan results (currently mock, notes reflect conceptually considered checks).
     *   `sensitive_data_findings.json`: Placeholder Sensitive Data Exposure scan results (currently mock, notes reflect conceptually considered checks for .git, API keys, backups, configs, etc.).
     *   `ssrf_vulnerabilities.json`: Placeholder SSRF scan results (currently mock, notes reflect conceptually considered checks like internal IP fuzzing, DNS callbacks, protocol smuggling, metadata abuse).
+    *   `rce_vulnerabilities.json`: Placeholder RCE scan results (currently mock, notes reflect conceptually considered checks like command injection, OOB detection, eval fuzzing).
 
 ## 3. Running the API Server
 

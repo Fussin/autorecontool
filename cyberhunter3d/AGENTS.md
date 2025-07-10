@@ -22,158 +22,84 @@ This document provides guidelines for AI agents working on the CyberHunter 3D pr
 -   `scripts/`: Helper scripts (e.g., for installation, setup).
 
 ## Specific Instructions
+
 -   **Reconnaissance Workflow Output Files (`ch_modules/subdomain_enumeration/main.py`):**
-    -   `Subdomain.txt`: Consolidated unique subdomains from Subfinder, Sublist3r, Amass, Assetfinder.
-    -   `subdomain_dns_resolutions.json`: JSON file mapping each discovered subdomain to a list of its resolved IP addresses (or an error/status message).
-    -   `subdomains_alive.txt`: Subdomains from `Subdomain.txt` that responded to HTTP/HTTPS checks on ports 80, 443, 8000, or 8080 (via httpx).
-    -   `subdomains_dead.txt`: Subdomains from `Subdomain.txt` that did not respond on any of the probed ports.
-    -   `subdomain_takeover_vulnerable.txt`: Output from `subzy` listing potential subdomain takeover vulnerabilities.
-    -   `Way_kat.txt`: Consolidated unique URLs discovered by Waybackurls, Katana, GAU, and Hakrawler, run against live subdomains. Basic filtering for common non-content file extensions (CSS, JS, images) is applied before saving.
-    -   `interesting_params.txt`: A list of unique query parameter names extracted from URLs in `Way_kat.txt`.
-    -   `alive_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 200-399 status codes.
-    -   `dead_domain.txt`: URLs from `Way_kat.txt` that returned HTTP 400-599 status codes or failed requests (includes status code in output).
-    -   `sensitive_exposure.txt`: URLs of potential sensitive files/paths discovered (e.g., `.env`, `.git/config`, `backup.sql`).
-    -   `xss_vulnerabilities.json`: Placeholder output for XSS hunter module.
-    -   `sqli_vulnerabilities.json`: Placeholder output for SQLi scanner module.
-    -   `lfi_vulnerabilities.json`: Placeholder output for LFI hunter module.
-    -   `cors_vulnerabilities.json`: Placeholder output for CORS hunter module.
-    -   `sensitive_data_findings.json`: Placeholder output for the structured Sensitive Data Exposure hunter module.
-    -   `ssrf_vulnerabilities.json`: Placeholder output for SSRF hunter module.
-    -   `xxe_vulnerabilities.json`: Placeholder output for XXE hunter module.
-    -   Placeholders: `wildcard_domains.txt`, `subdomain_technologies.json` are also created.
--   **URL Discovery Enhancement:**
--   **Parameter Extraction:**
-    -   A new step extracts unique query parameter names from all discovered URLs (`Way_kat.txt`) and saves them to `interesting_params.txt`.
--   **Subdomain Takeover Check (Integrated into Recon Workflow):**
-    -   Uses `subzy` tool.
-    -   Runs against `subdomains_alive.txt`.
-    -   Outputs findings to `subdomain_takeover_vulnerable.txt`.
--   **Sensitive Data Discovery Module (`ch_modules/sensitive_data_discovery/main.py`):**
-    -   Reads URLs from a specified input file (e.g., `alive_domain.txt` from the recon workflow).
-    -   Checks against a list of common sensitive patterns (file extensions, paths).
-    -   Uses `httpx` to verify if these potential sensitive URLs are accessible (200 OK).
-    -   Outputs findings to `sensitive_exposure.txt`.
--   **XSS Hunter Module (Placeholder - `ch_modules/xss_hunter/main.py`):**
-    -   Currently a placeholder, integrated into the main recon workflow.
-    -   Takes `urls_alive_file` as input.
-    -   Intended tools for future integration: Gxss, kxss, Dalfox, XSStrike.
-    -   Outputs a placeholder `xss_vulnerabilities.json` file.
--   **SQLi Scanner Module (`ch_modules/sqli_scanner/main.py`):**
-    -   **Current Implementation (Initial SQLMap Integration):**
-        -   Integrates `sqlmap` for scanning URLs with query parameters from `urls_alive_file`.
+    -   `Subdomain.txt`: Consolidated unique subdomains.
+    -   `subdomain_dns_resolutions.json`: Subdomain to IP mappings.
+    -   `subdomains_alive.txt`: Live subdomains (ports 80, 443, 8000, 8080).
+    -   `subdomains_dead.txt`: Non-responsive subdomains.
+    -   `subdomain_takeover_vulnerable.txt`: Potential subdomain takeovers (from Subzy).
+    -   `Way_kat.txt`: URLs from Waybackurls, Katana, GAU, Hakrawler (filtered).
+    -   `interesting_params.txt`: Unique query parameters from `Way_kat.txt`.
+    -   `alive_domain.txt`: Live URLs (200-399 status).
+    -   `dead_domain.txt`: Dead/Error URLs (400-599 status or failed requests).
+    -   `sensitive_data_findings.json`: Placeholder for structured sensitive data exposure findings. (Replaces older `sensitive_exposure.txt`).
+    -   `xss_vulnerabilities.json`: Placeholder XSS scan results.
+    -   `sqli_vulnerabilities.json`: SQLMap SQLi scan results (heuristic parsing).
+    -   `lfi_vulnerabilities.json`: Placeholder LFI scan results.
+    -   `cors_vulnerabilities.json`: Placeholder CORS scan results.
+    -   `ssrf_vulnerabilities.json`: Placeholder SSRF scan results.
+    -   `xxe_vulnerabilities.json`: Placeholder XXE scan results.
+    -   `rce_vulnerabilities.json`: Placeholder RCE scan results.
+    -   Placeholders: `wildcard_domains.txt`, `subdomain_technologies.json`.
+
+-   **URL Discovery Enhancement:** Uses GAU & Hakrawler in addition to Waybackurls & Katana.
+-   **Parameter Extraction:** Extracts unique query params from URLs into `interesting_params.txt`.
+-   **Subdomain Takeover Check:** Uses `subzy`.
+-   **XSS Hunter Module (Placeholder - `ch_modules/xss_hunter/`):**
+    -   Takes `urls_alive_file`. Intended tools: Gxss, kxss, Dalfox, XSStrike. Outputs `xss_vulnerabilities.json`.
+-   **SQLi Scanner Module (`ch_modules/sqli_scanner/`):**
+    -   Uses SQLMap on URLs with parameters. Flags: `--batch --level=1 --risk=1 --technique=EBU --dbms --banner --is-dba`.
+    -   Heuristic stdout parsing. Output: `sqli_vulnerabilities.json` with path to SQLMap session dir.
+    -   Planned: Better parsing, more techniques, Ghauri.
 -   **LFI Hunter Module (Enhanced Placeholder - `ch_modules/lfi_hunter/`):**
-    -   **Structure:** Contains `main.py` orchestrator and sub-modules: `wrapper_fuzzer.py`, `traversal_generator.py`, `log_poisoner.py`, `rce_chain.py`, `report_builder.py`.
-    -   All sub-modules currently contain placeholder functions that log their conceptual checks.
-    -   `main.py` calls these placeholder functions.
-    -   `report_builder.py` compiles the final `lfi_vulnerabilities.json` with notes reflecting the detailed conceptual checks performed by the sub-modules.
-    -   **Conceptually Considers Techniques:** Path traversal (e.g., `../../etc/passwd`, `proc/self/environ`), wrapper-based LFI (base64, data://, expect://), null byte injection, conceptual log poisoning, and LFI to RCE chains.
-    -   Mentions future use of tools like `ffuf` or custom Python `requests` scripts.
--   **Tool Dependencies for Reconnaissance Workflow:**
-    -   **Python Libraries (in `requirements.txt`):**
-        -   `httpx`: For HTTP/S liveness checks and sensitive data discovery URL checks.
-        -   Uses `sqlmap` with flags: `--batch`, `--random-agent`, `--level=1`, `--risk=1`, `--technique=EBU` (Error-based, Boolean-based, Union-based), `--dbms`, `--banner`, `--is-dba`.
-        -   SQLMap output/session files for each tested URL are stored in a unique subdirectory under `instance/scan_outputs/<target_domain>/sqlmap_sessions/`.
-        -   Vulnerability detection is currently based on a heuristic parsing of SQLMap's `stdout` (looking for "is vulnerable" or "injection point(s)").
-        -   Outputs findings to `sqli_vulnerabilities.json`. Each finding includes:
-            -   `url`: The tested URL.
-            -   `parameter_implicated`: The parameter SQLMap reported (or "unknown").
-            -   `type_of_sqli`: Currently "Generic SQLi (via SQLMap - check logs)".
-            -   `dbms_fingerprint`: DBMS info if found in stdout.
-            -   `notes`: Message indicating SQLMap reported a potential vulnerability and to check logs.
-            -   `sqlmap_output_dir_relative`: Relative path to the specific SQLMap session directory for manual review.
-    -   **Planned Enhancements (from original placeholder spec):**
-        -   More robust parsing of SQLMap output files (instead of just stdout heuristic).
-        -   Explicit flags for Time-based blind SQLi (currently EBU techniques are primary).
-        -   Advanced WAF bypass techniques (currently relies on SQLMap's defaults or basic tampers if added).
-        -   Integration of Ghauri.
--   **LFI Hunter Module (Placeholder - `ch_modules/lfi_hunter/main.py`):**
-    -   Currently a placeholder, integrated into the main recon workflow.
-    -   Takes `urls_alive_file` and `interesting_params.txt` as input.
-    -   **Conceptually Considers Techniques:** Path traversal (e.g., `../../etc/passwd`, `proc/self/environ`), wrapper-based LFI (base64, data://), null byte injection, conceptual log poisoning.
-    -   Mentions future use of tools like `ffuf` or custom Python `requests` scripts.
-    -   Outputs a placeholder `lfi_vulnerabilities.json` file with notes reflecting these conceptual checks.
+    -   Structured with sub-modules (`wrapper_fuzzer.py`, `traversal_generator.py`, etc.).
+    -   Conceptually covers: Path traversal, wrappers, null byte, log poisoning, RCE chains. Planned tools: ffuf. Output: `lfi_vulnerabilities.json`.
 -   **CORS Hunter Module (Enhanced Placeholder - `ch_modules/cors_hunter/`):**
-    -   **Structure:** Contains `main.py` orchestrator and sub-modules for specific CORS checks (`origin_tester.py`, `wildcard_checker.py`, `credential_checker.py`, `nuclei_wrapper.py` (conceptual), `subdomain_scanner.py`, `null_origin_tester.py`) and `report_builder.py`.
-    -   All sub-modules currently contain placeholder functions that log their conceptual checks.
-    -   `main.py` calls these placeholder functions.
-    -   `report_builder.py` compiles the final `cors_vulnerabilities.json` with notes reflecting the detailed conceptual checks.
-    -   **Conceptually Considers Techniques:** Origin reflection, wildcard origin detection (especially with credentials), credential misconfigurations, null origin behavior, subdomain trust abuse.
-    -   Mentions future use of Nuclei CORS templates.
+    -   Structured with sub-modules (`origin_tester.py`, `wildcard_checker.py`, etc.).
+    -   Conceptually covers: Origin reflection, wildcard, credentials, null origin, subdomain abuse. Planned: Nuclei templates. Output: `cors_vulnerabilities.json`.
 -   **Sensitive Data Exposure Hunter Module (Enhanced Placeholder - `ch_modules/sensitive_data_hunter/`):**
-    -   **Structure:** Contains `main.py` orchestrator and sub-modules: `git_exposure_scanner.py`, `api_key_detector.py`, `backup_file_fuzzer.py`, `config_file_scanner.py`, `file_entropy_analyzer.py` (conceptual), `ai_leak_classifier.py` (conceptual), and `report_builder.py`.
-    -   All sub-modules currently contain placeholder functions that log their conceptual checks.
+    -   Structured with sub-modules (`git_exposure_scanner.py`, `api_key_detector.py`, etc.).
+    -   Conceptually covers: .git exposure, API keys, backups, configs, entropy, AI classification. Output: `sensitive_data_findings.json`.
 -   **SSRF Hunter Module (Enhanced Placeholder - `ch_modules/ssrf_hunter/`):**
-    -   **Structure:** Contains `main.py` orchestrator and sub-modules: `dnslog_checker.py`, `payload_generator.py`, `metadata_abuser.py`, `port_scanner.py`, and `report_builder.py`.
+    -   Structured with sub-modules (`dnslog_checker.py`, `payload_generator.py`, etc.).
+    -   Conceptually covers: Internal IP fuzzing, DNS callbacks, protocol smuggling, metadata abuse, RCE chains. Output: `ssrf_vulnerabilities.json`.
+-   **XXE Hunter Module (Enhanced Placeholder - `ch_modules/xxe_hunter/`):**
+    -   Structured with sub-modules (`payload_generator.py`, `oob_logger.py`, etc.).
+    -   Conceptually covers: Basic entity injection, OOB, file disclosure, blind XXE, param/header injection, SOAP XXE. Planned: Nuclei, WS-Attacker. Output: `xxe_vulnerabilities.json`.
+-   **RCE Hunter Module (Enhanced Placeholder - `ch_modules/rce_hunter/`):**
+    -   **Structure:** Contains `main.py` orchestrator and sub-modules: `payload_generator.py`, `callback_checker.py`, `eval_fuzzer.py`, `reverse_shell_poc.py` (conceptual), and `report_builder.py`.
     -   All sub-modules currently contain placeholder functions that log their conceptual checks.
     -   `main.py` calls these placeholder functions.
-    -   `report_builder.py` compiles the final `ssrf_vulnerabilities.json` with notes reflecting the detailed conceptual checks.
-    -   **Conceptually Considers Techniques:** Internal IP brute-forcing, DNS callback checks, protocol smuggling (gopher://, file://, dict://), metadata API abuse (AWS, GCP, Azure), and SSRF to RCE chaining ideas.
+    -   `report_builder.py` compiles the final `rce_vulnerabilities.json` with notes reflecting the detailed conceptual checks.
+    -   **Conceptually Considers Techniques:** Command injection payloads (chaining ;, &&, |), Out-of-band detection via DNS, Language-specific payloads (PHP, Bash, Python), Eval/exec fuzzing (?cmd=, ?code=), and Reverse shell PoC generation ideas.
+
 -   **Tool Dependencies for Reconnaissance Workflow:**
     -   **Python Libraries (in `requirements.txt`):**
-        -   `httpx`: For HTTP/S liveness checks. (Note: the old simple sensitive_exposure.txt logic was based on this, new module is placeholder based).
-    -   `main.py` calls these placeholder functions, using live URLs and subdomains as input.
-    -   `report_builder.py` compiles the final `sensitive_data_findings.json` with notes reflecting the detailed conceptual checks.
-    -   **Conceptually Considers Techniques:** .git exposure (GitTools/git-dumper idea), API key/secret detection (regex/entropy), backup/archive fuzzing, exposed config file scanning, file content entropy analysis, and AI-assisted leak classification.
--   **Tool Dependencies for Reconnaissance Workflow:**
-    -   **Python Libraries (in `requirements.txt`):**
-        -   `httpx`: For HTTP/S liveness checks. (Note: the old simple sensitive_exposure.txt logic was based on this, new module is placeholder based).
+        -   `httpx`: For HTTP/S liveness checks.
         -   `sublist3r`: For subdomain enumeration.
-        -   `Flask`: Python library for the API server. Included in `requirements.txt`.
+        -   `Flask`: Python library for the API server.
     -   **Go-based Tools (Manual Install - Must be in PATH):**
-        -   `subfinder`: `go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest`
-        -   `amass`: `go install -v github.com/owasp-amass/amass/v4/cmd/amass@master` (script uses `amass intel -d <domain> -whois -ip`)
-        -   `assetfinder`: `go install -v github.com/tomnomnom/assetfinder@latest`
-        -   `waybackurls`: `go install -v github.com/tomnomnom/waybackurls@latest`
-        -   `katana`: `go install -v github.com/projectdiscovery/katana/cmd/katana@latest` (script uses `katana -u <target> -silent -jc -nc -aff -kf all`)
-        -   `subzy`: `go install -v github.com/LukaSikic/subzy@latest` (for subdomain takeover checks)
-        -   `gau`: `go install -v github.com/lc/gau@latest` (for URL discovery)
-        -   `hakrawler`: `go install -v github.com/hakluke/hakrawler@latest` (for URL discovery)
+        -   `subfinder`, `amass`, `assetfinder`, `waybackurls`, `katana`, `subzy`, `gau`, `hakrawler`. (See `INSTRUCTIONS.md` for install commands).
     -   **SQLMap (Manual Install - Must be in PATH or configured):**
-        -   Installation: Typically `git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git sqlmap-dev` then run `sqlmap.py`. Or system package if available (e.g., `sudo apt install sqlmap`).
-        -   The script will attempt to call `sqlmap` or `python3 path/to/sqlmap.py`. A configurable path is recommended for robustness.
+        -   (See `INSTRUCTIONS.md` for install commands).
+
 -   **API Design & Endpoints:**
-    -   The API is built using Flask.
-    -   Asynchronous tasks (like running the recon workflow) are currently handled using `concurrent.futures.ThreadPoolExecutor`. For production, consider migrating to a more robust task queue like Celery with Redis/RabbitMQ.
-    -   Scan job statuses and result paths are now stored persistently in an **SQLite database** (`instance/scan_jobs.db`).
-        -   **DB Schema (`scan_jobs` table in `ch_api/db_handler.py`):**
-            -   `scan_id` (TEXT PRIMARY KEY)
-            -   `target_domain` (TEXT NOT NULL)
-            -   `status` (TEXT NOT NULL: queued, running, completed, failed)
-            -   `created_at` (TEXT ISO 8601)
-            -   `updated_at` (TEXT ISO 8601)
-            -   `results_json` (TEXT: JSON string of result file paths)
-            -   `error_message` (TEXT)
-    -   The main API application is in `ch_api/main_api.py` (initializes DB, registers all blueprints).
-    -   Scan routes are in `ch_api/routes/scan_routes.py`.
-    -   Placeholder authentication API routes are in `ch_api/routes/auth_routes.py`.
-    -   Web UI routes (serving login page and target input page) are in `ch_web/routes.py`. The `ch_web` directory contains `templates/login.html`, `templates/target_input.html` and `static/css/style.css`.
+    -   Flask-based, uses `concurrent.futures.ThreadPoolExecutor` for async tasks.
+    -   Scan jobs persisted in SQLite (`instance/scan_jobs.db`).
+    -   Main app: `ch_api/main_api.py`. Scan routes: `ch_api/routes/scan_routes.py`. Auth (mock): `ch_api/routes/auth_routes.py`. Web UI: `ch_web/routes.py`.
     -   **Scan & Target Submission API Endpoints:**
-        -   Scan initiation for a single target: `POST /api/v1/scan/recon`
-            -   Request Body: `{"target": "example.com"}`
-            -   Response (202): `{"message": "...", "scan_id": "...", "target":"...", "status_endpoint": "...", "results_endpoint": "..."}`
-        -   Target submission for multiple targets: `POST /api/v1/targets/submit` (within `scan_routes.py`)
-            -   Request Body: `{"targets": ["example.com", "another.org"]}`
-            -   Response (200): `{"message": "...", "submitted_targets": count, "successfully_queued_scans": count, "scan_details": [{...}], "errors": [{...}]}`
-        -   `GET /recon/status/<scan_id>`: Retrieves the status of a scan.
-            -   Response (200): `{"scan_id": "...", "target": "...", "status": "queued|running|completed|failed", "error": "..."}`
-        -   `GET /recon/results/<scan_id>`: Retrieves the results of a completed scan (paths to files).
-            -   Response (200 if completed): Dictionary of result file paths.
-            -   Response (202 if in progress, 404 if not found, 500 if failed).
+        -   `POST /api/v1/scan/recon` (single target)
+        -   `POST /api/v1/targets/submit` (multiple targets)
+        -   `GET /api/v1/scan/recon/status/<scan_id>`
+        -   `GET /api/v1/scan/recon/results/<scan_id>`
     -   **Auth API Endpoints (Placeholders - base: `/api/v1/auth`):**
-        -   `POST /login`: Mock user login (username: "testuser", password: "password123").
-            -   Request: `{"username": "...", "password": "..."}`
-            -   Response (200 on mock success): `{"status": "success", "message": "Login successful. Please proceed with 2FA."}`
-            -   Response (401 on mock failure): `{"status": "error", "message": "Invalid username or password (mock)."}`
-        -   `POST /verify-2fa`: Mock 2FA verification (code: "123456").
-            -   Request: `{"two_fa_code": "..."}`
-            -   Response (200 on mock success): `{"status": "success", "message": "2FA verification successful. Access granted (mock)."}`
-            -   Response (401 on mock failure): `{"status": "error", "message": "Invalid 2FA code (mock)."}`
-        -   `POST /logout`: Mock user logout.
-            -   Response (200): `{"status": "success", "message": "Successfully logged out (mock)."}`
-    -   A basic `/health` endpoint is available at the root of the API server (`ch_api/main_api.py`).
-    -   A placeholder login page (`login.html`) is served at `/` or `/login` by the `ch_web` module.
+        -   `POST /login`, `POST /verify-2fa`, `POST /logout`
+    -   `/health` check endpoint.
+    -   Web UI: `/login` (mock), `/targets` (input form).
 
 ## Future Vision (3D Interface & AI)
 While the initial focus might be on backend logic and tool integration, keep the ultimate vision of a 3D holographic interface and AI-driven analysis in mind. Design components in a way that they can eventually feed data into such a system. For instance, ensure structured data output that can be easily parsed and visualized.
 
 Thank you for your contribution to CyberHunter 3D!
+```

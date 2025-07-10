@@ -25,10 +25,11 @@ Initial project structure setup. The tool currently features a comprehensive rec
     - Enhanced Placeholder for LFI Hunting (structured for various techniques).
     - Enhanced Placeholder for CORS Scanning (structured for various checks).
     - Enhanced Placeholder for Sensitive Data Exposure Hunting (structured for various checks).
-    - Enhanced Placeholder for SSRF Hunting (structured for various checks like DNS callbacks, protocol smuggling, metadata abuse).
+    - Enhanced Placeholder for SSRF Hunting (structured for various checks).
+    - Enhanced Placeholder for RCE Hunting (structured for command injection, OOB, eval fuzzing, etc.).
 - **API (`ch_api/`):**
     - Flask-based server.
-    - Endpoints to start reconnaissance scans (now including SQLMap for SQLi and placeholders for LFI, CORS, Sensitive Data, & SSRF), check status, and retrieve results.
+    - Endpoints to start reconnaissance scans (now including SQLMap for SQLi and placeholders for LFI, CORS, Sensitive Data, SSRF, & RCE), check status, and retrieve results.
     - Asynchronous scan execution using `ThreadPoolExecutor`.
     - Persistent storage of scan jobs and results metadata using SQLite (`instance/scan_jobs.db`).
 - **Web Interface (Placeholder):**
