@@ -94,8 +94,23 @@ Several external Go-based tools are used by the reconnaissance script. You need 
         # Other OSs will have different commands (e.g., brew install sqlmap on macOS)
         ```
     *   Ensure `sqlmap` or `sqlmap.py` is executable and in your PATH, or provide a full path to `sqlmap.py` if the script is enhanced to support a configurable path (currently it assumes `sqlmap` is in PATH).
+*   **Nmap:** (For service detection, OS fingerprinting, script scanning)
+    ```bash
+    sudo apt update && sudo apt install nmap # For Debian/Ubuntu
+    # Or download from nmap.org for other OSs.
+    ```
+*   **Naabu:** (For fast port scanning)
+    ```bash
+    go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
+    ```
+*   **Masscan:** (For large-scale asynchronous port scanning - Optional, as Naabu is primary for now)
+    ```bash
+    sudo apt install masscan # For Debian/Ubuntu
+    # Or compile from source: git clone https://github.com/robertdavidgraham/masscan; cd masscan; make
+    ```
 
-**Verification:** After installation, ensure each tool is accessible by typing its name in the terminal (e.g., `subfinder -h`, `gau -h`, `hakrawler -h`, `sqlmap --version`). If you get a "command not found" error, ensure your Go binary path (usually `$HOME/go/bin` or `$GOPATH/bin`) or the SQLMap directory is added to your system's `PATH` environment variable.
+
+**Verification:** After installation, ensure each tool is accessible by typing its name in the terminal (e.g., `subfinder -h`, `gau -h`, `hakrawler -h`, `sqlmap --version`, `nmap -V`, `naabu -h`). If you get a "command not found" error, ensure your Go binary path (usually `$HOME/go/bin` or `$GOPATH/bin`) or the SQLMap/Nmap/Masscan directory is added to your system's `PATH` environment variable.
 
 ## 2. Running the Reconnaissance Script Directly
 
@@ -131,6 +146,7 @@ The script will:
     *   `sensitive_data_findings.json`: Placeholder Sensitive Data Exposure scan results (currently mock, notes reflect conceptually considered checks for .git, API keys, backups, configs, etc.).
     *   `ssrf_vulnerabilities.json`: Placeholder SSRF scan results (currently mock, notes reflect conceptually considered checks like internal IP fuzzing, DNS callbacks, protocol smuggling, metadata abuse).
     *   `rce_vulnerabilities.json`: Placeholder RCE scan results (currently mock, notes reflect conceptually considered checks like command injection, OOB detection, eval fuzzing).
+    *   `network_scan_results.json`: Placeholder network scan results (port scanning, service detection from conceptual Nmap/Naabu runs).
     *   `aggregated_vulnerabilities.json`: Consolidated and deduplicated list of all findings from the vulnerability scanning modules, in a unified JSON format.
 
 ## 3. Running the API Server

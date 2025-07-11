@@ -27,6 +27,9 @@ Initial project structure setup. The tool currently features a comprehensive rec
     - Enhanced Placeholder for Sensitive Data Exposure Hunting (structured for various checks).
     - Enhanced Placeholder for SSRF Hunting (structured for various checks).
     - Enhanced Placeholder for RCE Hunting (structured for command injection, OOB, eval fuzzing, etc.).
+- **Network Scanning (`ch_modules/network_scanner/`):**
+    - Placeholder for port scanning (Naabu, Masscan) and service detection/script scanning (Nmap).
+    - Generates `network_scan_results.json` (currently with mock data).
 - **Vulnerability Aggregation & Deduplication (`ch_modules/vulnerability_aggregator/`):**
     - Collects findings from all vulnerability scanning modules.
     - Normalizes data into a unified JSON schema.
@@ -34,7 +37,7 @@ Initial project structure setup. The tool currently features a comprehensive rec
     - Outputs `aggregated_vulnerabilities.json`.
 - **API (`ch_api/`):**
     - Flask-based server.
-    - Endpoints to start reconnaissance scans (including all vulnerability modules and final aggregation), check status, and retrieve results.
+    - Endpoints to start reconnaissance scans (now including network scanning, all vulnerability modules, and final aggregation), check status, and retrieve results.
     - Asynchronous scan execution using `ThreadPoolExecutor`.
     - Persistent storage of scan jobs and results metadata using SQLite (`instance/scan_jobs.db`).
 - **Web Interface (Placeholder):**

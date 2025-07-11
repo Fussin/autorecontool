@@ -228,6 +228,37 @@ class TestApiFullWorkflow(unittest.TestCase):
 
         print(f"Full workflow test for {self.test_target} passed.")
 
+        # 6. Verify network_scan_results_file (Phase 19)
+        self.assertIn("network_scan_results_file", results_data,
+                      "'network_scan_results_file' key missing from API results.")
+        network_results_file_path = results_data["network_scan_results_file"]
+        self.assertIsNotNone(network_results_file_path, "Path for network scan results file is null.")
+        self.assertTrue(os.path.exists(network_results_file_path),
+                        f"Network scan results file does not exist at path: {network_results_file_path}")
+
+        try:
+            with open(network_results_file_path, 'r') as f:
+                network_content = json.load(f)
+            self.assertIsInstance(network_content, dict,
+                                  "Network scan results content is not a JSON object.")
+            self.assertIn("scan_id", network_content)
+            self.assertEqual(network_content["scan_id"], scan_id)
+            self.assertIn("hosts", network_content)
+            self.assertIsInstance(network_content["hosts"], list)
+            # For testphp.vulnweb.com (no live subdomains after initial recon),
+            # network scan should be skipped.
+            if self.test_target == "testphp.vulnweb.com":
+                 self.assertEqual(network_content.get("status"), "skipped_no_subdomains_found_by_any_tool", # Updated expected status
+                                 f"Expected network scan status 'skipped_no_subdomains_found_by_any_tool' for {self.test_target}, got {network_content.get('status')}")
+            print(f"Successfully loaded network_scan_results.json: {network_results_file_path}. Status: {network_content.get('status')}")
+
+        except json.JSONDecodeError:
+            self.fail(f"Network scan results file is not valid JSON: {network_results_file_path}")
+        except Exception as e:
+            self.fail(f"Error reading or validating network_scan_results.json: {e}")
+
+        print(f"Network scan module integration checks passed for {self.test_target}.")
+
 
 if __name__ == "__main__":
     unittest.main()

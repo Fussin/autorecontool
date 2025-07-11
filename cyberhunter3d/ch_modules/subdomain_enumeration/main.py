@@ -251,6 +251,7 @@ def run_recon_workflow(target_domain: str, scan_id: str, output_path: str = "./s
     xxe_results_file = os.path.join(base_output_dir, "xxe_vulnerabilities.json")
     rce_results_file = os.path.join(base_output_dir, "rce_vulnerabilities.json")
     aggregated_vulnerabilities_file = os.path.join(base_output_dir, "aggregated_vulnerabilities.json")
+    network_scan_results_file_path = os.path.join(base_output_dir, "network_scan_results.json") # Define path
 
 
     wildcard_file = os.path.join(base_output_dir, "wildcard_domains.txt") # Currently not actively generated, placeholder
@@ -268,9 +269,11 @@ def run_recon_workflow(target_domain: str, scan_id: str, output_path: str = "./s
         "lfi_results_file": lfi_results_file, "cors_results_file": cors_results_file,
         "ssrf_results_file": ssrf_results_file, "xxe_results_file": xxe_results_file,
         "rce_results_file": rce_results_file,
-        "aggregated_vulnerabilities_file": aggregated_vulnerabilities_file, # Add this
+        "aggregated_vulnerabilities_file": aggregated_vulnerabilities_file,
+        "network_scan_results_file": network_scan_results_file_path, # Added for network scanner
         "wildcard_domains_file": wildcard_file, "metadata_file": metadata_file
     }
+    logger.info(f"[{target_domain} - {scan_id}] Initial results_summary keys: {list(results_summary.keys())}")
 
 
     logger.info(f"[{target_domain} - {scan_id}] --- Running Subdomain Enumeration Tools ---")
@@ -295,23 +298,37 @@ def run_recon_workflow(target_domain: str, scan_id: str, output_path: str = "./s
             dns_resolutions_file, xss_results_file, sqli_results_file, lfi_results_file,
             cors_results_file, sensitive_data_findings_file, ssrf_results_file,
             xxe_results_file, rce_results_file,
-            metadata_file # metadata is also JSON
+            metadata_file, # metadata is also JSON
+            results_summary.get("network_scan_results_file") # Add network scan results file path from summary
             # aggregated_vulnerabilities_file handled separately below
         ]
+         # Filter out None values in case a file path wasn't set in results_summary yet (shouldn't happen for network_scan_results_file here)
+        expected_json_files = [f for f in expected_json_files if f]
+
         for f_path in expected_json_files:
             if not os.path.exists(f_path):
                 try:
-                    content_to_write = json_placeholder_content
+                    content_to_write = json_placeholder_content # Default placeholder
                     if f_path == dns_resolutions_file or f_path == metadata_file:
                         content_to_write = {} # Empty dict for these
+                    elif f_path == results_summary.get("network_scan_results_file"):
+                        content_to_write = {
+                            "scan_id": scan_id, # Add scan_id
+                            "status": f"skipped_{reason_message.lower().replace(' ', '_').replace('.', '')}",
+                            "notes": f"Network scan skipped: {reason_message}",
+                            "hosts": []
+                        }
+
                     with open(f_path, 'w') as f: json.dump(content_to_write, f, indent=2)
                 except Exception as e:
                      logger.error(f"Could not create placeholder JSON file {f_path}: {e}")
 
         # Specifically for aggregated_vulnerabilities_file, it should be an empty list on early exit
-        if not os.path.exists(aggregated_vulnerabilities_file):
+        # Ensure aggregated_vulnerabilities_file path is correctly obtained from results_summary
+        agg_file_path = results_summary.get("aggregated_vulnerabilities_file")
+        if agg_file_path and not os.path.exists(agg_file_path):
             try:
-                with open(aggregated_vulnerabilities_file, 'w') as f: json.dump([], f, indent=2)
+                with open(agg_file_path, 'w') as f: json.dump([], f, indent=2)
             except Exception as e:
                 logger.error(f"Could not create placeholder aggregated_vulnerabilities_file: {e}")
 
@@ -333,7 +350,9 @@ def run_recon_workflow(target_domain: str, scan_id: str, output_path: str = "./s
 
     if not all_discovered_subdomains:
         logger.warning(f"[{target_domain} - {scan_id}] No subdomains found by any tool.")
-        return create_placeholders_for_early_exit("No subdomains found by any tool", results_summary)
+        final_summary_on_early_exit = create_placeholders_for_early_exit("No subdomains found by any tool", results_summary)
+        logger.info(f"[{target_domain} - {scan_id}] Early exit. Results summary keys: {list(final_summary_on_early_exit.keys())}")
+        return final_summary_on_early_exit
 
     sorted_subdomains = sorted(list(all_discovered_subdomains))
     with open(all_subdomains_file, "w") as f:
@@ -436,18 +455,13 @@ def run_recon_workflow(target_domain: str, scan_id: str, output_path: str = "./s
     from ..ssrf_hunter.main import hunt_for_ssrf
     from ..xxe_hunter.main import hunt_for_xxe
     from ..rce_hunter.main import hunt_for_rce
+    from ..network_scanner.main import run_network_scan # Added for Phase 19
 
-    # Import the aggregator. Assuming 'ch_modules' is in PYTHONPATH or accessible.
-    # This might need adjustment based on how the main API server runs this workflow.
-    # If cyberhunter3d/ is the root of the package, then this is not directly relative.
-    # This is a common Python packaging challenge.
-    # For now, let's try a direct import assuming PYTHONPATH is set up one level above 'ch_modules' (project root)
-    # OR that this file is run from a context where 'ch_modules' is a top-level package.
+    # Import the aggregator.
     try:
         from ch_modules.vulnerability_aggregator.main import aggregate_and_deduplicate_vulnerabilities
     except ModuleNotFoundError:
-        logger.error(f"[{target_domain} - {scan_id}] Could not import vulnerability_aggregator. Ensure 'ch_modules' is in PYTHONPATH or structure is correct.")
-        # Fallback or raise error - for now, log and continue without aggregation
+        logger.error(f"[{target_domain} - {scan_id}] Could not import vulnerability_aggregator. Ensure 'ch_modules' (aggregator's parent) is in PYTHONPATH or structure is correct.")
         aggregate_and_deduplicate_vulnerabilities = None
 
 
@@ -492,7 +506,41 @@ def run_recon_workflow(target_domain: str, scan_id: str, output_path: str = "./s
                 with open(default_out_file, "w") as f: json.dump({"notes": f"{name} scan error: {e}", "vulnerabilities":[]}, f, indent=2)
             results_summary[os.path.basename(default_out_file).replace("_vulnerabilities.json","").replace("_findings.json","") + "_results_file"] = default_out_file # Point to placeholder
 
-    # PHASE 18: Vulnerability Aggregation and Deduplication
+    # PHASE 19: Network Scanning
+    # Depends on live subdomains, not necessarily live URLs from wayback/katana
+    network_scan_input_valid = os.path.exists(subdomains_alive_file) and os.path.getsize(subdomains_alive_file) > 0
+    network_scan_results_file_path = os.path.join(base_output_dir, "network_scan_results.json") # Define expected path
+    results_summary["network_scan_results_file"] = network_scan_results_file_path # Add to summary early
+
+    if network_scan_input_valid:
+        logger.info(f"[{target_domain} - {scan_id}] Starting Network Scanning...")
+        try:
+            net_scan_output = run_network_scan(
+                targets_file_live_subs=subdomains_alive_file,
+                base_output_dir=base_output_dir, # Network scanner will create its own subfolder 'network_scan'
+                scan_id=scan_id,
+                scan_profile="default" # Or make this configurable later
+            )
+            # The run_network_scan function returns a dict like {"network_scan_results_file": "/path/to/file.json"}
+            # Update the results_summary with the actual path returned, though it should match network_scan_results_file_path
+            if net_scan_output.get("network_scan_results_file"):
+                results_summary["network_scan_results_file"] = net_scan_output["network_scan_results_file"]
+                logger.info(f"[{target_domain} - {scan_id}] Network Scanning completed. Results: {net_scan_output['network_scan_results_file']}")
+            else:
+                logger.error(f"[{target_domain} - {scan_id}] Network Scanning finished but no results file path returned.")
+                if not os.path.exists(network_scan_results_file_path):
+                    with open(network_scan_results_file_path, 'w') as f: json.dump({"notes": "Network scan error or no output.", "hosts":[]}, f, indent=2)
+        except Exception as e:
+            logger.error(f"[{target_domain} - {scan_id}] Exception during Network Scanning: {e}", exc_info=True)
+            if not os.path.exists(network_scan_results_file_path):
+                with open(network_scan_results_file_path, 'w') as f: json.dump({"notes": f"Network scan exception: {e}", "hosts":[]}, f, indent=2)
+    else:
+        logger.warning(f"[{target_domain} - {scan_id}] Skipping Network Scanning: No live subdomains found.")
+        if not os.path.exists(network_scan_results_file_path):
+            with open(network_scan_results_file_path, 'w') as f: json.dump({"notes": "Network scan skipped: No live subdomains.", "hosts":[]}, f, indent=2)
+
+
+    # PHASE 18: Vulnerability Aggregation and Deduplication (comes after all individual finding generators)
     if aggregate_and_deduplicate_vulnerabilities:
         logger.info(f"[{target_domain} - {scan_id}] Starting Vulnerability Aggregation...")
         try:
@@ -504,7 +552,7 @@ def run_recon_workflow(target_domain: str, scan_id: str, output_path: str = "./s
                 logger.error(f"[{target_domain} - {scan_id}] Vulnerability Aggregation failed or produced no output file.")
                 results_summary["aggregation_error"] = "Aggregation failed or no output."
                 if not os.path.exists(aggregated_vulnerabilities_file): # Create placeholder
-                     with open(aggregated_vulnerabilities_file, "w") as f: json.dump({"notes": "Aggregation failed.", "vulnerabilities":[]}, f, indent=2)
+                     with open(aggregated_vulnerabilities_file, "w") as f: json.dump([], f, indent=2) # Aggregated should be a list
                 results_summary["aggregated_vulnerabilities_file"] = aggregated_vulnerabilities_file
 
 
@@ -512,12 +560,12 @@ def run_recon_workflow(target_domain: str, scan_id: str, output_path: str = "./s
             logger.error(f"[{target_domain} - {scan_id}] Exception during Vulnerability Aggregation: {e}", exc_info=True)
             results_summary["aggregation_error"] = str(e)
             if not os.path.exists(aggregated_vulnerabilities_file): # Create placeholder
-                with open(aggregated_vulnerabilities_file, "w") as f: json.dump({"notes": f"Aggregation exception: {e}", "vulnerabilities":[]}, f, indent=2)
+                with open(aggregated_vulnerabilities_file, "w") as f: json.dump([], f, indent=2) # Aggregated should be a list
             results_summary["aggregated_vulnerabilities_file"] = aggregated_vulnerabilities_file
     else:
         logger.warning(f"[{target_domain} - {scan_id}] Vulnerability aggregator not available. Skipping aggregation.")
         if not os.path.exists(aggregated_vulnerabilities_file): # Create placeholder
-            with open(aggregated_vulnerabilities_file, "w") as f: json.dump({"notes": "Aggregator not available.", "vulnerabilities":[]}, f, indent=2)
+            with open(aggregated_vulnerabilities_file, "w") as f: json.dump([], f, indent=2) # Aggregated should be a list
         results_summary["aggregated_vulnerabilities_file"] = aggregated_vulnerabilities_file
 
 
